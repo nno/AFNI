@@ -18,25 +18,15 @@ function test_GetWord_basics()
     assertEqual(w,'o');
 
 
-    [err,w]=GetWord ('  a  bl c| l d e',1,'| l');
-    assertEqual(err,0);
-    assertEqual(w,'a');
-
-    [err,w]=GetWord ('  a  bl c| l d e',2,'| l');
-    assertEqual(err,0);
-    assertEqual(w,'b');
-
-    [err,w]=GetWord ('  a  bl c| l d e',3,'| l');
-    assertEqual(err,0);
-    assertEqual(w,'c');
-
-    [err,w]=GetWord ('  a  bl c| l d e',4,'| l');
-    assertEqual(err,0);
-    assertEqual(w,'d');
-
-    [err,w]=GetWord ('  a  bl c| l d e',5,'| l');
-    assertEqual(err,0);
-    assertEqual(w,'e');
+    expected_words={'a','b','c','ddd','e'};
+    for k=1:numel(expected_words)
+        for nspaces=[0 2]
+            s=[ repmat(' ',1,nspaces) '  a  bl c| l ddd e'];
+            [err,w]=GetWord (s,k,'| l');
+            assertEqual(err,0);
+            assertEqual(w,expected_words{k});
+        end
+    end
 
 
     [err,w]=GetWord ('Hello Jim | Munch',2,'x');

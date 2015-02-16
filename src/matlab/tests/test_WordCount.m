@@ -7,3 +7,4 @@ function test_suite=test_WordCount()
 function test_test_WordCount_basics()
     assertEqual(WordCount('Hi Ya  |  Freak ','|'),2);
     assertEqual(WordCount('Hi Ya    Freak '),3);
+    assertEqual(WordCount('Hi |Y|a | Freak ','| '),4);
