@@ -50,9 +50,9 @@ function niml=pase_string(s)
         % being an Nx1 cell, fo N NIML elements
         niml=cell(size(header_body.headername));
         for k=1:numel(header_body.headername)
-            hb=stuct();
-            hb.headename=header_body.headername{k};
-            hb.headetext=header_body.headertext{k};
+            hb=struct();
+            hb.headername=header_body.headername{k};
+            hb.headertext=header_body.headertext{k};
             hb.body=header_body.body{k};
             niml{k}=header_body2niml(hb);
         end
