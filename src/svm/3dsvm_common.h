@@ -1,3 +1,40 @@
+/*****************************************************************************/
+/*                                                                           */
+/* 3dsvm_common.h                                                            */
+/*                                                                           */
+/* Definitions and functions used by 3dsvm                                   */
+/*                                                                           */
+/* Copyright (C) 2007 Stephen LaConte                                        */
+/*                                                                           */
+/* This file is part of 3dsvm                                                */
+/*                                                                           */
+/* 3dsvm is free software: you can redistribute it and/or modify             */
+/* it under the terms of the GNU General Public License as published by      */
+/* the Free Software Foundation, either version 3 of the License, or         */
+/* (at your option) any later version.                                       */
+/*                                                                           */
+/* 3dsvm is distributed in the hope that it will be useful,                  */
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of            */
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             */
+/* GNU General Public License for more details.                              */
+/*                                                                           */
+/* You should have received a copy of the GNU General Public License         */
+/* along with 3dsvm.  If not, see <http://www.gnu.org/licenses/>.            */
+/*                                                                           */
+/*                                                                           */
+/* The SVM-light software is copyrighted by Thorsten Joachims                */
+/* and is redistributed by permission.                                       */
+/*                                                                           */
+/* The SVM-light software is free only for non-commercial use. It must not   */
+/* be distributed without prior permission of the author. The author is not  */
+/* responsible for implications from the use of this software.               */
+/*                                                                           */
+/*                                                                           */
+/* For AFNI's copyright please refer to ../README.copyright.                 */
+/*                                                                           */
+/*****************************************************************************/
+
+
 #ifndef _3DSVM_COMMON_H
   #define _3DSVM_COMMON_H
 #endif
@@ -16,8 +53,8 @@
  * readAllocateAfniModel is using the version number to read in model
  * parameters correctly */
 
-#define VERSION_3DSVM "V1.21"
-#define VERSION_DATE_3DSVM "01/04/12"
+#define VERSION_3DSVM "V1.27"
+#define VERSION_DATE_3DSVM "07/21/15"
 #define CLASS_MAX 300
 #define SCALE 4000000
 #define MAX_FILE_NAME_LENGTH 500
@@ -99,7 +136,7 @@ typedef struct ASLoptions{
   int linearWmap;               /* JL May 2011: flag signifying that user has 
                                    specified -wout flag: Write sum of weighted 
                                    linear sv into bucket file. This is currently 
-                                   the only activation map that is implemeted. */
+                                   the only activation map that is implemented. */
 }ASLoptions;
 
 typedef struct labels {
@@ -107,14 +144,16 @@ typedef struct labels {
                                    categories for fMRI data */
   LabelType* cnsrs;	        /* indicates which labels to ignore
                                    (value == 0) or use (value == 1) */
-  LabelType* lbls_cont;         /* JL: labels converted to continues values */
+  LabelType* lbls_cont;         /* JL: labels converted to continuous values */
   int *class_list;              /* hold class numbers appearing in classfile
                                    JL: changed allocation due to corruption
                                    problems */
   int n_classes;                /* number of different classes allowed
                                    (for multiclass) */
+  int *lbls_count;              /* occurrence of each class label 
+                                   (continuous index) */
   long n;			/* the number of labels and censors */
-  int n_cnsrs;                  /* JL: number ofensord time points
+  int n_cnsrs;                  /* JL: number of censored time points
                                    (i.e., label 9999) */
 } LABELS;
 
@@ -155,10 +194,6 @@ typedef struct afniSvmModelHead {
   int   *total_masked_features;
   int   *total_samples;         /* number of time points per class */
   int   *total_support_vectors;
-  float **cAlphas;              /* JL: censored alphas,
-          * cAlphas[class][total_samples[cc]]. Contains alphas without censored
-          * timepoints (i.e., skipping labels: 9999 and censors), to match index
-          * of data and index of alphas for each class-combination */
   float **alphas;               /* alphas[class][timepoints] */
   float *b;
 
@@ -256,7 +291,7 @@ static char advanced_helpstring[] = "\n"
 "                        will give results that are most closely comparable with \n"
 "                        SVM-light predictions \n"
 "\n"
-"  -nopredcensord        Do not write predictions for censored time-points to\n"
+"  -nopredcensored       Do not write predictions for censored time-points to\n"
 "                        prediction file\n"
 "\n"
 "  -getenv               Will specify ALL command line options using the current environment\n"
@@ -412,19 +447,20 @@ static char cl_helpstring[] = "\n"
 "\n"
 "-trainvol trnname      A 3D+t AFNI brik dataset to be used for training. \n"
 "\n"
-"-mask mname            mname must be is a byte-format brik file used to\n"
-"                       mask voxels in the analysis. For example, a mask\n"
-"                       of the whole brain can be generated by using \n"
-"                       3dAutomask, or more specific ROIs could be generated\n"
-"                       with the Draw Dataset plugin or converted from a \n"
-"                       thresholded functional dataset. The mask is specified\n"
-"                       during training but is also considered part of the \n"
-"                       model output and is automatically applied to test \n"
-"                       data. \n"
+"-mask mname            Specify a mask dataset to only perform the analysis\n" 
+"                       on non-zero mask voxels.\n"
+"                       ++ If '-mask' is not used '-nomodelmask must be\n"
+"                          specified. \n"
+"                       For example, a mask of the whole brain can be \n"
+"                       generated by using 3dAutomask, or more specific ROIs\n" 
+"                       could be generated with the Draw Dataset plugin or\n" 
+"                       converted from a thresholded functional dataset. \n"
+"                       The mask is specified during training but is also \n"
+"                       considered part of the model output and is \n"
+"                       automatically applied to test data. \n"
 "\n"
-"-nomodelmask           Flag to enable the omission of a mask file. If this\n"
-"                       option is used for training, it must also be used \n"
-"                       for testing.\n"
+"-nomodelmask           Flag to enable the omission of a mask file. This is \n"
+"                       required if '-mask' is not used.\n"
 "\n"
 "-trainlabels lname     lname = filename of class category .1D labels \n"
 "                       corresponding to the stimulus paradigm for the \n" 
@@ -842,7 +878,7 @@ static char contribution_string [] =
 "Original version written by JP and SL, August 2006 \n"
 "Released to general public, July 2007 \n"
 "\n"
-"Questions/Comments/Bugs - email slaconte@vt.edu \n"
+"Questions/Comments/Bugs - email slaconte@vtc.vt.edu \n"
 "\n\n"
 "Reference:\n"
 "LaConte, S., Strother, S., Cherkassky, V. and Hu, X. 2005. Support vector\n" 
@@ -867,6 +903,30 @@ static char contribution_string [] =
 
 /*----- String that briefly describes changes -------------------*/
 static char change_string[] = "\n"
+"V1.27 (07/21/15)\n"
+"  1) Bugfix: Forgot to update plug_3dsvm in V1.26. Thanks Rick!\n"
+"\n"
+"V1.26 (07/07/15)\n"
+"  1) Bugfix: Model was not initialized properly during regression training\n"
+"     when excluding timepoints (-censor). This might have caused a\n"
+"     crash (depending on platform) during testing\n"
+"  2) Changed alpha file output (-alpha) for regression. Always write both\n"
+"     sets of alphas even if they are zero\n" 
+"\n"
+"V1.25 (08/25/14)\n"
+"  1) Bugfix: Non-linear kernels were not working for regression and caused\n"
+"     3dsvm to crash. Classification was not affected by this.\n"
+"\n"
+"V1.24 (04/03/14)\n"
+"  1) Allow data type short and float for the mask (previously only byte).\n"
+"  2) Fixed option -classout and mulit-class accuracy report for non-\n"
+"     continuous class labels (e.g., {4, 1, 9} instead of {0, 1, 2})\n"
+"\n"
+"V1.23 (08/16/13)\n"
+"  1) Bugfix: Fixed -censor during testing.\n"
+"\n"
+"V1.22 (01/04/12)\n"
+"  1) Bugfix: Fixed -max_iterations flag.\n"
 "\n"
 "V1.21 (01/04/12)\n"
 "  1) Bugfix: 3dsvm real-time plugin caused AFNI crash for subsequent runs.\n"
@@ -944,7 +1004,7 @@ static char change_string[] = "\n"
 
 /* --- JL Jul 2011: Added funciton prototypes --- */
 void           print_version( void );
-void           detrend_linear_cnsrs( float *, float *, LABELS * );
+int            detrend_linear_cnsrs( float *, LABELS *, char * );
 void           write_svmLight_doc( DOC *, long , long , LabelType *, char *, char * ); 
 void           printASLoptions( ASLoptions* );
 void           printAfniModel( AFNI_MODEL * );
@@ -972,9 +1032,9 @@ void           free2c( char **, long );
 int            compare_ints( const int *, const int * );
 DOC *          allocateDOCs( long , long ); 
 void           freeDOCs( DOC *, long ); 
-int            allocateMultiClassArrays( float ***, float **, float **, long **, 
+int            allocateMultiClassArrays( float ***, float **, float **, int **, 
                   int **, long, long, long, char * );
-void           freeMultiClassArrays( float **, float *, float *, long *, int *, long );
+void           freeMultiClassArrays( float **, float *, float *, int*, int *, long );
 DatasetType**  getAllocateDsetArray(THD_3dim_dataset *, char *);
 void           freeDsetArray( THD_3dim_dataset *, DatasetType ** );
 int            allocateModel( MODEL *, AFNI_MODEL *, char * ); 
@@ -983,8 +1043,8 @@ void           updateModel( MODEL *, AFNI_MODEL *, int );
 void           freeModelArrays( DatasetType**, MaskType*, long, int );
 int            getAllocateModelArrays( THD_3dim_dataset*, DatasetType***, 
                    MaskType**, long *, long *, int *, int, char * );
-void           get_svm_model( MODEL *, DatasetType **, MaskType *, AFNI_MODEL *,
-                   long, int noMaskFlag );
+int            get_svm_model( MODEL *, DatasetType **, MaskType *, AFNI_MODEL *,
+                   long, int, char * );
 int            readAllocateAfniModel( THD_3dim_dataset *,  AFNI_MODEL *, char * );
 int            allocateModelMaps( MODEL_MAPS *, long, long, char * );
 void           freeModelMaps( MODEL_MAPS * );
@@ -1004,7 +1064,7 @@ void          getClassTrainArrayAndTarget( DatasetType **, LabelType *,
               DatasetType **, LabelType *, long, long );
 void          afni_dset_to_svm_doc( DOC *, DatasetType **, MaskType*, long, 
                   long, long );
-int          getCensoredClassTarget( LabelType *, long *, LABELS *, long, 
+int           getCensoredClassTarget( LabelType *, long *, LABELS *, long, 
                   long, enum modes, char *);
 void          getTmpLabels( LabelType *, long *, LABELS *, long, long );
 void          freeAfniModel( AFNI_MODEL *);
@@ -1014,7 +1074,7 @@ void          freeAfniModelAndArrays( AFNI_MODEL *, DatasetType **, MaskType *,
 int           readAllocateAfniModelAndArrays( ASLoptions *, AFNI_MODEL *, 
               THD_3dim_dataset *, DatasetType ***, MaskType **dsetMaskArray, 
                   long *, long *, enum modes, int *, char * );
-void          freeLabels( LABELS * );
+void          freeClassificationLabels( LABELS * );
 int           getAllocateClassificationLabels (LABELS *, char *, char *, char * );
 int           getAllocateRegressionLabelsAndTarget( LABELS *, LabelType **, char *, 
               char *, char * );

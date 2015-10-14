@@ -66,6 +66,66 @@
 afni_history_struct ptaylor_history[] = {
 /*=====BELOW THIS LINE=====*/
 
+{ 28, Sep , 2015 , PT , "fat_mvm_scripter.py" , MINOR , TYPE_BUG_FIX,
+   "Use list of ROIs to select subnetwork of analysis for 3dMVM.",
+   "Previously, sublist only applied to post hocs, not 3dMVM models.\n"
+},
+   
+{ 18, Sep , 2015 , PT , "@GradFlipTest" , MICRO , TYPE_MODIFY,
+   "For DWI analysis: just linear fitting of tensor.",
+   "Faster 3dDWItoDT usage, only do linear fit.\n"
+},
+
+{ 16, Sep , 2015 , PT , "@GradFlipTest" , MAJOR , TYPE_NEW_PROG,
+   "For DWI analysis: test whether grads need to be flipped.",
+   "Use a few tracking calls to estimate 'best' grad orientations.\n"
+},
+
+{ 10, Aug , 2015 , PT , "fat_mvm_scripter.py" , MINOR , TYPE_NEW_OPT,
+   "Minor new option: input list of ROIs with file.",
+   "For minor convenience.\n"
+},
+
+{ 9, Aug , 2015 , PT , "3dROIMaker" , MINOR , TYPE_BUG_FIX,
+   "Fixed minor bug when GM map has no ROIs/clusters.",
+   "No more crashing... Won't produce GM or GMI volumes; message only.\n"
+},
+
+{ 5, Aug , 2015 , PT , "fat_mvm_prep.py" , MICRO , TYPE_BUG_FIX,
+   "Micro ~bug fixed for inputting CSV headings.",
+   "Now strip off lead/trail whitespace, then replace rest with underscore.\n"
+},
+
+{ 22, Jul , 2015 , PT , "3dROIMaker" , MINOR , TYPE_BUG_FIX,
+   "Fixed minor bug when refset has negative values.",
+   "No more crashing...\n"
+},
+
+{ 7, Jul , 2015 , PT , "fat_mat_sel.py" , MINOR , TYPE_NEW_OPT,
+   "Simple new option to exclude x-axis labels.",
+   "They might just be annoying.\n"
+},
+
+{ 21, May , 2015 , PT , "fat_mvm_scripter.py" , MINOR , TYPE_BUG_FIX,
+   "Minor bug fixed for inputting sublist of ROIs.",
+   "Short option for doing so worked, but not the long one; fixed now.\n"
+},
+
+{ 21, May , 2015 , PT , "3dDWUncert" , MICRO , TYPE_NEW_OPT,
+   "Can choose to analyze only high-FA voxels: don't waste time on GM/CSF.",
+   "Option to ignore low-FA vox for uncert, leave them 0.\n"
+},
+
+{ 15, May , 2015 , PT , "1dDW_Grad_o_Mat" , MINOR , TYPE_NEW_OPT,
+   "Can output separate bval file.",
+   "Useful in some TORT preprocessing.\n"
+},
+
+{ 27, Apr , 2015 , PT , "3dROIMaker" , MINOR , TYPE_BUG_FIX,
+   "Fixed output when byte/short insets were used.",
+   "Had been not writing data; needed to null brick_facs in outsets.\n"
+},
+
 { 9, Feb , 2015 , PT , "3dTrackID" , MINOR , TYPE_NEW_OPT,
    "Can threshold bundles with too few tracks; TRK files not default out.",
    "Useful to control false pos;  useful to save space outputting.\n"

@@ -43,7 +43,179 @@
 
 afni_history_struct rwcox_history[] = {
 /*=====BELOW THIS LINE=====*/
-  { 12 , FEB , 2015 , RWC , "afni GUI graphs" , MICRO , TYPE_GENERAL ,
+  { 13 , OCT , 2015 , RWC , "3dGroupInCorr" , MICRO , TYPE_MODIFY ,
+   "Finally fixed -clust option to correspond to new 3dClustSim output" ,
+   "That is, 9 NIML files instead of 3." } ,
+
+ { 7 , OCT , 2015 , RWC , "afni GUI" , MICRO , TYPE_GENERAL ,
+   "Attempt to fix 'crash on re-open controller' problem" ,
+   "Happened when Clusterize was used in A, then B opened, B closed, B\n"
+   "re-opened -- boom.  Set deleted FD_bricks to NULL seems to help. \n"
+   "Fingers crossed." } ,
+
+ { 1 , OCT , 2015 , RWC , "AFNI clusterize" , MICRO , TYPE_MODIFY ,
+   "Made showing linkRbrain button default now" ,
+   "setenv AFNI_LINKRBRAIN NO to turn this button off" } ,
+
+ { 22 , SEP , 2015 , RWC , "3dDeconvolve" , MICRO , TYPE_NEW_ENV ,
+   "AFNI_USE_ERROR_FILE = NO turns off creation of 3dDeconvolve.err" ,
+   NULL } ,
+
+ { 9 , SEP , 2015 , RWC , "afni clusterize" , MICRO , TYPE_ENHANCE ,
+   "Add popup chooser for max number linkRbrain clusters" ,
+   NULL } ,
+
+ { 9 , SEP , 2015 , RWC , "whereami (etc)" , MICRO , TYPE_BUG_FIX ,
+   "Fix bug in parsing LinkRbrain output XML file" ,
+   "Problem: fread() of file does not NUL terminate the string -- causes\n"
+   "problems!  Simply solved.\n"
+   "Also fixed problem in afni_cluster.c, where peak coords and cmass coords\n"
+   "passed to LinkRbrain were being interchanged." } ,
+
+ { 28 , AUG , 2015 , RWC , "3dDeconvolve" , MICRO , TYPE_BUG_FIX ,
+   "Hack to allow -stim_times_IM to work with times > TMAX" ,
+   "Times > TMAX are ignored.  In usual cases, this isn't a problem.  But\n"
+   "with IM regression, each time gets a regressor, and times > TMAX produce\n"
+   "all zero regressors -- which is a problem.  This hack will cut them off\n"
+   "(at least in some cases)." } ,
+
+ { 11 , AUG , 2015 , RWC , "3dFWHMx" , MICRO , TYPE_MODIFY ,
+   "Modify -2difMAD option calculations" ,
+   "If smoothness calculation fails using Median Absolute Deviation, retry\n"
+   "with Mean Absolute Deviation." } ,
+
+ { 11 , AUG , 2015 , RWC , "3dFWHMx" , MINOR , TYPE_NEW_OPT ,
+   "-1difMOD option" ,
+   "Computes the moments of the 1st differences, then estimates the mean and\n"
+   "standard deviation of the smoothness factors, then reports the mean\n"
+   "smoothness adjusted upwards to allow for the fact that 3dClustSim\n"
+   "depends more strongly on bigger smoothness than on smaller smoothness. \n"
+   "For use with single subject tests; probably too conservative for group\n"
+   "analyses." } ,
+
+ { 29 , JUL , 2015 , RWC , "3dTstat" , MICRO , TYPE_NEW_OPT ,
+   "add -nzstdev option" ,
+   "Given a voxel, extract all the values.  Throw out those values that are\n"
+   "nonzero.  Compute the stdev of the remaining set (assuming at least 2),\n"
+   "with no further processing (no detrending)." } ,
+
+ { 27 , JUL , 2015 , RWC , "3dREMLfit" , MINOR , TYPE_NEW_OPT ,
+   "-dsort_nods option" ,
+   "When used with -dsort, this option will make 3dREMLfit calculate the\n"
+   "results with the -dsort regressors(s) omitted as well as the results\n"
+   "with the -dsort regressor(s) included -- so the user can compare the\n"
+   "dsort and non-dsort results easily with 1 run of the program.  'nods' ==\n"
+   "'no dsort'.  Each nods dataset will have the string '_nods' appended to\n"
+   "the prefix." } ,
+
+ { 23 , JUL , 2015 , RWC , "3dREMLfit" , MINOR , TYPE_NEW_OPT ,
+   "Add -dsort option" ,
+   "Allows the addition of voxel-wise baseline regressors.  To test out\n"
+   "ANATICOR applied to task-based FMRI data, for example." } ,
+
+ { 17 , JUL , 2015 , RWC , "mri_write.c" , MICRO , TYPE_BUG_FIX ,
+   "Make mri_write_1D(\"stdout:\") work correctly" ,
+   "Before you could get filename \"stdout:.1D\" which is not very useful." } ,
+
+ { 26 , JUN , 2015 , RWC , "3dPval" , MICRO , TYPE_NEW_PROG ,
+   "3dPval converts statistics bricks to p-values" ,
+   "For Isaac.  Non-statistic bricks are converted to float and passed\n"
+   "through unchanged." } ,
+
+ { 22 , JUN , 2015 , RWC , "3dvolreg" , MICRO , TYPE_MODIFY ,
+   "Add output of max inter-TR displacement" ,
+   "In addition to the max total displacement (as of old)." } ,
+
+ { 12 , JUN , 2015 , RWC , "plug_L1fit" , MICRO , TYPE_MODIFY ,
+   "Modify Timeseries input to use all columns of file, not just 1st" ,
+   NULL } ,
+
+ { 5 , JUN , 2015 , RWC , "3dSimARMA11" , MICRO , TYPE_NEW_OPT ,
+   "Add hidden -tdof option" ,
+   NULL } ,
+
+ { 26 , MAY , 2015 , RWC , "3dClustSim" , MICRO , TYPE_NEW_OPT ,
+   "Add secret -tdof option" ,
+   NULL } ,
+
+ { 14 , MAY , 2015 , RWC , "1dplot" , MICRO , TYPE_NEW_OPT ,
+   "Add -demean option == remove mean from time series before plotting" ,
+   "Multiple -demean options implies higher order polynomials!" } ,
+
+ { 14 , MAY , 2015 , RWC , "afni Clusterize" , MICRO , TYPE_MODIFY ,
+   "Add ' Detrend?? ' button to hidden popup" ,
+   "Allows user (me) to detrend the aux data before plotting it." } ,
+
+ { 12 , MAY , 2015 , RWC , "3dClustSim" , MINOR , TYPE_MODIFY ,
+   "Eliminate edge effects of smoothing by padding and unpadding" ,
+   "Simulate extra-size volumes then smooth, then cut back to the desired\n"
+   "volume size.  Can use new '-nopad' option to try the old-fashioned\n"
+   "method. (H/T to Anders Eklund and Tom Nichols.)" } ,
+
+{ 8 , MAY , 2015 , RWC , "InstaCorr" , MICRO , TYPE_BUG_FIX ,
+   "Change way index in 3D+time dataset is chosen from xyz" ,
+   "Instead of just converting from xyz (eg, crosshair) coordinates via the\n"
+   "standard grid transformation functions in thd_coords.c, what we want is\n"
+   "the voxel in the 3D+time dataset that is closest in 3D to the xyz\n"
+   "location AFTER it is transformed back to the underlay for display.  In\n"
+   "this way, the center of correlation will map to the clicked voxel.  This\n"
+   "selection is done in new function THD_find_closest_roundtrip() which\n"
+   "searches the 27 points in a cube around the thd_coords.c derived point,\n"
+   "in order to find the voxel in the 3D+time dataset that, when transformed\n"
+   "back to the underlay dataset, is closest.  Brute force, but that's what\n"
+   "you have to do when dealing with the Spanish Inquisition." } ,
+
+  { 7 , MAY , 2015 , RWC , "AFNI GUI" , MICRO , TYPE_MODIFY ,
+   "Change 'List of AFNI papers' to be in HTML, not plain text" ,
+   "So it appears in an htmlwin rather than a textwin, and there are links\n"
+   "to the papers.  Works by a new convert_text_to_html() function." } ,
+
+ { 4 , MAY , 2015 , RWC , "GLTsymtest" , MINOR , TYPE_NEW_PROG ,
+   "For testing symbolic GLTs in a script" ,
+   "So that the big boy (3dDeconvolve) doesn't have to be run just for this\n"
+   "purpose.  To help out with afni_proc.py" } ,
+
+ { 27 , APR , 2015 , RWC , "debug tracing" , MICRO , TYPE_GENERAL ,
+   "Added 'recent internal history' to .afni.crashlog" ,
+   "The last few ENTRY/EXIT/STATUS updates are saved, to help pinpoint the\n"
+   "sequence of events before the demise of the patient." } ,
+
+ { 23 , Apr , 2015 , RWC , "AFNI GUI"     , MICRO , TYPE_BUG_FIX ,
+    "Fix Aux.Dset button crash in Clusterize" ,
+    "Because Ziad Saad is trouble, that's why.\n"
+    "(Either that, or 'free(x)' should imply 'x=NULL'.)\n"
+    "Also, catch SIGABRT signal, so Mac malloc() errors are tracebacked." } ,
+
+  { 14 , Apr , 2015 , RWC , "AFNI GUI"     , MICRO , TYPE_BUG_FIX ,
+    "Fix index text overlay clash in graph window" ,
+    "Because Daniel Glen is trouble, that's why." } ,
+
+  { 13 , APR , 2015 , RWC , "all programs" , MICRO , TYPE_GENERAL ,
+    "AFNI programs now write crash logs to file ~/.afni.crashlog" ,
+    NULL } ,
+
+  { 13 , APR , 2015 , RWC , "AFNI itself" , MICRO , TYPE_BUG_FIX ,
+    "Fix crash when ClustSim info in dataset header is incomplete" ,
+    "Problem was if mask string was missing, it tried to read the\n"
+    "mask idcode from a now-deleleted NIML element -- bad news." } ,
+
+  { 27 , MAR , 2015 , RWC , "3dttest++" , MICRO , TYPE_BUG_FIX ,
+   "linux_xorg7_64 distribution gets argv[nopt] wrong?!" ,
+   "Fixed by putting in a debug printout statement for argv[nopt] at start\n"
+   "of loop over options.  Even when not used, this fixes the problem --\n"
+   "probably caused by the gcc optimizer." } ,
+
+ { 23 , MAR , 2015 , RWC , "3dttest++" , MAJOR , TYPE_NEW_OPT ,
+   "Add -singletonA option" ,
+   "For testing one subject vs a collection of 'normals'.  Works with\n"
+   "covariates." } ,
+
+ { 11 , MAR , 2015 , RWC , "afni GUI" , MICRO , TYPE_NEW_ENV ,
+   "AFNI_CROSSHAIR_THICKNESS" ,
+   "Lets user set thickness of image crosshair lines.  For someone named\n"
+   "Corianne, if that is a real name." } ,
+
+ { 12 , FEB , 2015 , RWC , "afni GUI graphs" , MICRO , TYPE_GENERAL ,
    "Labels for x-axis range" ,
    NULL } ,
 

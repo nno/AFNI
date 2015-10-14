@@ -1,6 +1,6 @@
 
 /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
-/*   This is the mother goddess of all FMRI programs, so bow down before it.  */
+/*   This is the mother goddess of all FMRI programs, so bow down before it!  */
 /*-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
 /*****************************************************************************
@@ -1323,11 +1323,32 @@ void AFNI_sigfunc(int sig)
 #ifdef SHSTRING
    fprintf(stderr,"** [[Precompiled binary " SHSTRING ": " __DATE__ "]]\n") ;
 #endif
-   fprintf(stderr,"** Program Abort **\n") ;
-   if( sig != SIGINT && sig != SIGTERM )
-   fprintf(stderr,"** If you report this crash to the AFNI message\n"
-                  "** board, please copy the error messages EXACTLY.\n") ;
+   fprintf(stderr,"** AFNI Program Is Dead :-( **\n") ;
    fflush(stderr) ;
+   if( sig != SIGINT && sig != SIGTERM ){  /* add crashlog [13 Apr 2015] */
+     FILE *dfp ; char *home , fname[1024] ;
+     fprintf(stderr,"** If you report this crash to the AFNI message\n"
+                    "** board, please copy the error messages EXACTLY.\n") ;
+     home = getenv("HOME") ;
+     if( home != NULL ){
+       strcpy(fname,home) ; strcat(fname,"/.afni.crashlog") ;
+     } else {
+       strcpy(fname,".afni.crashlog") ;
+     }
+     dfp = fopen( fname , "a" ) ;
+     if( dfp != NULL ){
+       fprintf(dfp,"\n*********-----------------------------------------------*********") ;
+       fprintf(dfp,"\nFatal Signal %d (%s) received\n",sig,sname); fflush(stderr);
+       DBG_tfp = dfp ; DBG_traceback() ; DBG_tfp = stderr ;
+       fprintf(dfp,"** AFNI version = " AVERZHN "  Compile date = " __DATE__ "\n" );
+#ifdef SHSTRING
+       fprintf(dfp,"** [[Precompiled binary " SHSTRING ": " __DATE__ "]]\n") ;
+#endif
+       fprintf(dfp,"** AFNI Program Hideous Death **\n") ;
+       fclose(dfp) ;
+       fprintf(stderr,"** Crash log appended to file %s\n",fname) ;
+     }
+   }
    exit(1) ;
 }
 
@@ -1358,6 +1379,7 @@ void AFNI_sigfunc_alrm(int sig)
      "Happy trails to you, until we meet again"                      ,
      "Only in the agony of parting do we see the depths of love"     ,
      "Goodbye isn't painful, unless we'll never say hello again"     ,
+     "The pain of parting is nothing to the joy of meeting again"    ,
      "Be well, do good work, and keep in touch"                      ,
      "In the hope to meet shortly again"                             ,
      "May the wind be ever at your back"                             ,
@@ -1423,6 +1445,8 @@ void AFNI_sigfunc_alrm(int sig)
      "O Captain, My Captain, rise up and hear the bells"             ,
      "O Captain, My Captain, our fearful trip is done"               ,
      "Ever returning spring, trinity sure to me you bring"           ,
+     "If thou wast not grant to sing, thou would'st surely die"      ,
+     "Here, user that slowly passes, I give you my sprig of lilac"   ,
      "What a long strange trip it's been"                            ,
      "Sometime the light shines on me, other times I can barely see" ,
      "When life looks like Easy Street, there is danger at your door",
@@ -1440,6 +1464,10 @@ void AFNI_sigfunc_alrm(int sig)
      "Some cause happiness wherever they go; others whenever they go",
      "A man who does not think for himself does not think at all"    ,
      "The truth is rarely pure and never simple"                     ,
+     "A thing is not necessarily true because a man dies for it"     ,
+     "Experience is the name men give to their mistakes"             ,
+     "Whenever people agree with me, I think I must be wrong"        ,
+     "We are each our own devil, and make this world our hell"       ,
      "I have nothing to declare except my genius"                    ,
      "In matters of opinion, all my adversaries are insane"          ,
      "Everything is a matter of opinion: mine matters, yours doesn't",
@@ -1457,7 +1485,8 @@ void AFNI_sigfunc_alrm(int sig)
      "Let's blow this place and grab us some vino"                   ,
      "Let's blow this place and grab some brewskis"                  ,
      "Are you ready for a coffee break? I am"                        ,
-     "Make mine a tall skinny vanilla latte, if you please"          ,
+     "Make mine a tall skinny Earl Grey vanilla latte, if you please",
+     "What's your favorite ice cream? I like French vanilla"         ,
      "I'd like a strong cup of Lapsang Souchong about now"           ,
      "What's your favorite kind of bagel? I like pumpernickel"       ,
      "What's your favorite kind of cookie? I like white chocolate"   ,
@@ -1467,7 +1496,7 @@ void AFNI_sigfunc_alrm(int sig)
      "Meet me at the Leshan Dafo in Sichuan at 3pm next Wednesday"   ,
      "Let's meet at the Xuankong Si in Shanxi on Thursday week"      ,
      "Meet me the Namche Bazaar gompa next Thursday"                 ,
-     "Meet me at Dashashwamedh Ghat in Varanasi for Agni Puja"       ,
+     "Meet me at Dashashwamedh Ghat in Varanasi for Agni puja"       ,
      "Meet me at the top of Renjo La in the next snowstorm"          ,
      "See you in Dingboche next Christmas"                           ,
      "I'll see you at Angkor Wat at midnight next Saturday"          ,
@@ -1489,7 +1518,7 @@ void AFNI_sigfunc_alrm(int sig)
      "I am not bound to please thee with my statistics"              ,
      "I will praise any man that will praise me"                     ,
      "If you have tears, prepare to shed them now"                   ,
-     "Man, those neutrinos are killing me"                           ,
+     "Man, those solar neutrinos are killing me"                     ,
      "Are you ready for the explosion of Eta Carinae?"               ,
      "Remember -- AFNI is free, but worth at least 1000 times more"  ,
      "Remember -- Nothing is always absolutely so"                   ,
@@ -1503,6 +1532,9 @@ void AFNI_sigfunc_alrm(int sig)
      "Remember -- Aquaman cares"                                     ,
      "Remember -- She who laughs, lasts"                             ,
      "Remember -- He who laughs, lasts"                              ,
+     "Remember -- The innocent have everything to fear"              ,
+     "Remember -- Memory is long but time is tricky"                 ,
+     "'It remains to be seen' == 'When pigs fly'"                    ,
      "Do not scorn pity that is the gift of a gentle heart"          ,
      "The best laid statistics of mice and men gang aft agley"       ,
      "A thousand farewells pass in one moment"                       ,
@@ -1560,12 +1592,36 @@ void AFNI_sigfunc_alrm(int sig)
      "What do you do all day? I do very little, and do it slowly"    ,
      "Did you find a paradigm shift today?"                          ,
      "Was it the silver bullet you were hoping for?"                 ,
+     "Why is 'gold' the standard for data analysis, anyway?"         ,
      "Did you find the Holy Grail of neuroimaging yet?"              ,
      "Shedding new light on the brain since 1994!"                   ,
      "Brain-ology at the cutting edge since 1994!"                   ,
      "Don't you wish it had a 'Write Nature Paper' button?"          ,
-     "Coming soon: the 'Write Science Paper' interface"              ,
+     "Coming REAL soon: the 'Write Science Paper' interface"         ,
+     "And flights of angels sing thee to thy rest"                   ,
+     "Hast seen the White Whale?"                                    ,
+     "Our sweetest songs are those that tell of saddest thought"     ,
+     "The more we study, the more we discover our ignorance"         ,
+     "Nothing wilts faster than laurels that have been rested upon"  ,
+     "Fear not for the future; weep not for the past"                ,
+     "AFNI, when soft images fade, vibrates in the memory forever"   ,
+     "Nothing ever becomes real until it is experienced"             ,
+     "No bird soars too high if he soars with his own wings"         ,
+     "Great things are done when men and mountains meet"             ,
+     "A fool sees not the same tree that a wise man sees"            ,
+     "What is now proved was once only imagined"                     ,
+     "It is easier to forgive an enemy than to forgive a friend"     ,
+     "The true method of knowledge is experiment"                    ,
+     "The flower that smells the sweetest is shy and lowly"          ,
+     "He knows not his own strength, that has not met adversity"     ,
+     "Weigh the meaning, and look not at the words"                  ,
+     "Statistics are no substitute for judgment"                     ,
 
+     "A software's reach should exceed its CPU, or what's a supercomputer for?"       ,
+     "There are 2 kinds of statistics: those you compute and those you just make up"  ,
+     "It is the mark of a truly intelligent person to be moved by statistics"         ,
+     "Dreams are true while they last, and do we not live in dreams?"                 ,
+     "Have you made your long term (trillion year) research plan yet? Get busy"       ,
      "Why is 'Gold Standard' used in science? Gold is pretty but almost useless"      ,
      "Oh well, you can always end your paper with 'Further research needed'"          ,
      "It's not true my youth was wild and crazy -- only half of that is true"         ,
@@ -1584,6 +1640,9 @@ void AFNI_sigfunc_alrm(int sig)
      "If your experiment needs statistics, you need a better experiment"              ,
      "Wirth's law -- software gets slower faster than hardware gets faster"           ,
      "How wouldst thou worst, I wonder, than thou dost, defeat, thwart me?"           ,
+     "O the mind, mind has mountains, cliffs of fall frightful"                       ,
+     "All life death does end and each day dies with sleep"                           ,
+     "Let me be fell, force I must be brief"                                          ,
      "Meet me at the Torre Pendente di Pisa on the feast of St Rainerius"             ,
      "One martini is just right; two is too many; three is never enough"              ,
      "If you can't explain it simply, you don't understand it well enough"            ,
@@ -1607,6 +1666,12 @@ void AFNI_sigfunc_alrm(int sig)
      "Analyze your data rigorously -- you can fake the conclusions all you want later",
      "O wad some Pow'r the giftie gie us, To see oursels as ithers see us"            ,
 
+     "My name is AFNImandias, Brain of Brains; Look on my Statistics, ye Clever, and despair" ,
+     "Statistically Significant is NOT the same as Significant -- they're not even close"     ,
+
+     "\n  The great thing about the human condition:\n"
+     "  No matter how bad it is, it can always get worse"                                     ,
+
      "\n  When someone says: I'm going to simplify things.\n"
      "  They mean:         Be confused. Be very, very confused"                               ,
 
@@ -1628,8 +1693,11 @@ void AFNI_sigfunc_alrm(int sig)
      "\n  When someone says: I agree 100% with your concept,\n"
      "  They mean:         I am implacably opposed to your proposal"                          ,
 
-     "\n  If reasonable priors lead to different conclusions, then it's time to\n"
-     "  look for more data, think harder, mumble inaudibly, or take a wild guess"
+     "\n  If 2 reasonable priors lead to different conclusions, then it's time to\n"
+     "  look for more data, think harder, mumble inaudibly, or take a wild guess"             ,
+
+     "\n  To be stupid, selfish, and have good health are three requirements\n"
+     "   for happiness; though if stupidity is lacking, all is lost.\n"
    } ;
 #undef NTOP
 #ifdef USE_SONNETS
@@ -1675,7 +1743,7 @@ void AFNI_sigfunc_alrm(int sig)
        MCW_melt_widget( im3d->vwid->top_form ) ;
      }
    }
-
+   selenium_close(); /* close any selenium opened browser windows if open */
    exit(sig);
 }
 #undef NMSG
@@ -1867,7 +1935,7 @@ int main( int argc , char *argv[] )
                      "            fink install netpbm\n" ) ;
 #endif
 
-   /** Start the debug traceback stuff **/
+   /** Start the debug traceback stuff (also resets signal handler) **/
 
    mainENTRY("AFNI:main") ; /* 26 Jan 2001: replace ENTRY w/ mainENTRY */
 
@@ -1984,6 +2052,18 @@ int main( int argc , char *argv[] )
      AFNI_process_environ(NULL) ;                         /* 07 Jun 1999 */
    } else {
      AFNI_mark_environ_done() ;                           /* 16 Apr 2000 */
+   }
+
+   /*-- 30 Apr 2015: some messages about obsolete environment variables --*/
+
+   if( getenv("AFNI_SLAVE_THRTIME") != NULL ){
+     WARNING_message("environment variable AFNI_SLAVE_THRTIME is no longer used!") ;
+     WARNING_message(" -- see AFNI_SLAVE_FUNCTIME and AFNI_SLAVE_THROLAY instead") ;
+   }
+
+   if( getenv("AFNI_SLAVE_BUCKETS_TOO") != NULL ){  /* 30 May 2015 */
+     WARNING_message("environment variable AFNI_SLAVE_BUCKETS_TOO is no longer used!") ;
+     WARNING_message(" -- see AFNI_SLAVE_FUNCTIME and AFNI_SLAVE_THROLAY instead") ;
    }
 
    /* set top exponent for threshold slider [04 Nov 2010] -- for Allison */
@@ -2481,9 +2561,11 @@ static char * random_goodbye(void)
 void AFNI_quit_CB( Widget wcall , XtPointer cd , XtPointer cbs )
 {
    Three_D_View *im3d = (Three_D_View *)cd ;
-   XmPushButtonCallbackStruct *pbcbs = (XmPushButtonCallbackStruct *) cbs ;
+   XmPushButtonCallbackStruct *pbcbs = (XmPushButtonCallbackStruct *)cbs ;
 
 ENTRY("AFNI_quit_CB") ;
+
+   if( cd == NULL ) AFexit(0) ;  /* 27 Jul 2015 */
 
    if( ! IM3D_OPEN(im3d) ) EXRETURN ;
 
@@ -2508,7 +2590,9 @@ ENTRY("AFNI_quit_CB") ;
        (ShiftMask|ControlMask|Button2Mask|Button3Mask) ){
 
       XtCloseDisplay( XtDisplay(im3d->vwid->top_shell) ) ;
+#if 0
       AFNI_speak(random_goodbye(),0) ;
+#endif
       AFexit(0) ;
    }
 
@@ -3270,7 +3354,7 @@ STATUS("defining surface drawing parameters") ;
         DC_parse_color( im3d->dc , ag->line_color , &rr_lin,&gg_lin,&bb_lin ) ;
         DC_parse_color( im3d->dc , ag->box_color  , &rr_box,&gg_box,&bb_box ) ;
         linewidth = ag->line_width * 0.002f ;
-		  skip_boxes = 1 ; skip_lines = 0 ; skip_lcen = 0; skip_ledg = 1 ;
+        skip_boxes = 1 ; skip_lines = 0 ; skip_lcen = 0; skip_ledg = 1 ;
 
       } else {                                   /* the old way    */
                                                  /* to set colors:  */
@@ -3609,13 +3693,16 @@ STATUS("drawing triangle lines") ;
 
      if( do_xhar ){
       MCW_grapher *grapher = UNDERLAY_TO_GRAPHER(im3d,br) ;
+      float thth = (float)AFNI_numenv("AFNI_CROSSHAIR_THICKNESS") ;
 
       THD_ivec3 ib = THD_3dind_to_fdind( br ,
                                          TEMP_IVEC3( im3d->vinfo->i1 ,
                                                      im3d->vinfo->j2 ,
                                                      im3d->vinfo->k3  ) ) ;
 STATUS("drawing crosshairs") ;
-      set_thick_memplot(0.0) ;
+
+      if( thth < 0.0f || thth > 0.05f ) thth = 0.0f ;
+      set_thick_memplot(thth) ;
 
       if( n == ib.ijk[2] || im3d->vinfo->xhairs_all ){
          int jp,ip , jcen,icen , gappp , jj,ii ;
@@ -9428,7 +9515,6 @@ THD_fvec3 AFNI_transform_vector( THD_3dim_dataset *old_dset ,
    return old_fv ;
 }
 
-
 /*------------------------------------------------------------------------
   09 May 2001: fix a Solaris stupidity, where the scale is resized
                improperly when the Define Function panel is opened!
@@ -10582,7 +10668,7 @@ ENTRY("AFNI_jump_and_seed") ;
 
 int AFNI_creepto_dicom( Three_D_View *im3d , float xx, float yy, float zz )
 {
-   float xc,yc,zc , dxx,dyy,dzz ; int ndd,qq,ii  ;
+   float xc,yc,zc , dxx,dyy,dzz ; int ndd,qq,ii=0 ;
 
 ENTRY("AFNI_creepto_dicom") ;
 

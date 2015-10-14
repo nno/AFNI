@@ -38,7 +38,7 @@
 
 #include "thd_compress.h"
 
-#include "nifti1_io.h"   /* 06 Dec 2005 */
+#include "nifti2_io.h"   /* 06 Dec 2005 */
 
 #ifndef myXtFree
 /*! Macro to free a pointer and NULL-ize it as well. */
@@ -165,6 +165,11 @@ extern "C" {
 
 #undef  isnumeric
 #define isnumeric(c) (isdigit(c) || (c) == '-' || (c) == '+' || (c) == '.')
+
+/* define what angular difference constitues a "real" difference
+ * (allow for truncation artifacts)          22 May 2015 [rickr] */
+#undef OBLIQ_ANGLE_THRESH
+#define OBLIQ_ANGLE_THRESH 0.01
 
 /***************  generic function with no return value  **********************/
 
@@ -328,7 +333,7 @@ typedef struct {
 /*************************  help utilities    *************************/
 
 /* Flags & macros for shpinx string formatting */
-typedef enum { TFORM_NOT_SET, NO_FORMAT, TXT, SPX , ASPX } TFORM;
+typedef enum { TFORM_NOT_SET, NO_FORMAT, TXT, SPX , ASPX, WEB } TFORM;
 
 #define CHECK_HELP(opt,fun) {\
    if( strcmp(argv[iarg],"-h_spx") == 0 ){   \
@@ -2904,7 +2909,7 @@ typedef struct THD_3dim_dataset {
 
 /*! Dataset is tcat-ed? */
 
-#define DSET_IS_TCAT(ds) (ISVALID_DSET(ds) && (ds)->tcat_list != NULL)
+#define DSET_IS_TCAT(ds) (ISVALID_DSET(ds) && (ds)->tcat_list != NULL && (ds)->tcat_num > 0)
 
 /*! Return pointer to current dataset axes (warp-on-demand or permanent). */
 
@@ -3742,7 +3747,6 @@ extern float THD_fdrcurve_zqtot( THD_3dim_dataset *dset , int iv , float zval ) 
 #define DSET_unload_one(ds,iv) THD_purge_one_brick( (ds)->dblk , (iv) )
 
 /*! Delete dataset ds's volumes and struct from memory.
-
     Does not delete from disk
 */
 #define DSET_delete(ds) THD_delete_3dim_dataset((ds),False)
@@ -3751,7 +3755,6 @@ extern float THD_fdrcurve_zqtot( THD_3dim_dataset *dset , int iv , float zval ) 
   do{ THD_delete_3dim_dataset((ds),False); myXtFree((ds)); } while(0)
 
 /*! Write dataset ds to disk.
-
     Also loads the sub-brick statistics
 */
 #define DSET_write(ds)  ( THD_load_statistics( (ds) ) ,                    \
@@ -4806,8 +4809,9 @@ typedef struct FD_brick {
 #define STATUS_TMASK(sss,fdb)                                   \
  do{ if( fdb != NULL ) STATUSp(sss,fdb->tmask) ; } while(0)
 
-#define DESTROY_FD_BRICK(fdb) \
- do{ FD_brick *_jj=fdb; if( _jj != NULL ){ mri_free(_jj->tmask); myXtFree(_jj); } } while(0)
+#define DESTROY_FD_BRICK(fdb)       \
+ do{ FD_brick *_jj=(FD_brick *)fdb; \
+     if( _jj != NULL ){ mri_free(_jj->tmask); myXtFree(_jj); fdb=NULL; } } while(0)
 
 /*! rotate the three numbers (a,b,c) to (b,c,a) into (na,nb,nc) */
 
@@ -5153,8 +5157,8 @@ extern int    thd_mask_from_brick(THD_3dim_dataset *, int, float, byte **, int);
 extern int    thd_multi_mask_from_brick(THD_3dim_dataset *, int, byte **);
 
 
-extern void THD_autobbox( THD_3dim_dataset * ,             /* 06 Jun 2002 */
-                          int *, int * , int *, int * , int *, int * ) ;
+extern THD_3dim_dataset * THD_autobbox( THD_3dim_dataset * ,  /* 06 Jun 2002 */
+                          int *, int * , int *, int * , int *, int *, char *) ;
 extern void MRI_autobbox( MRI_IMAGE * ,
                           int *, int * , int *, int * , int *, int * ) ;
 extern void MRI_autobbox_clust( int ) ;                    /* 20 Sep 2006 */
@@ -5346,6 +5350,8 @@ extern int THD_bandpass_vectors( int nlen, int nvec, float **vec, /* 30 Apr 2009
                                  float dt, float fbot, float ftop,
                                  int qdet, int nort, float **ort ) ;
 extern int THD_bandpass_OK( int nx, float dt, float fbot, float ftop, int verb ) ;
+extern int THD_bandpass_remain_dim(int nx, float dt, float fbot, float ftop, int verb) ;  /* 18 Mar 2015 [rickr] */
+
 extern int THD_bandpass_set_nfft( int n ) ;
 
 extern int THD_bandpass_vectim( MRI_vectim *mrv ,
@@ -5871,6 +5877,13 @@ extern void set_gni_to_float(int) ;
 extern void set_gni_write_mode(int) ;
 extern int  set_ni_globs_from_env(void) ;
 extern int  set_sparse_data_attribs(NI_element *, THD_3dim_dataset *, int) ;
+
+/*------------------------------------------------------------------------*/
+/* for converting between NIFTI-1 and NIFTI-2   10 Jul, 2015 [rickr]      */
+int64_t * copy_ints_as_i64    (int * ivals, int nvals);
+int       nifti_mat44_2_dmat44(mat44 * fm, nifti_dmat44 * dm);
+int       nifti_dmat44_2_mat44(nifti_dmat44 * dm, mat44 * fm);
+
 
 
 #define SBFLAG_INDEX    (1<<0)

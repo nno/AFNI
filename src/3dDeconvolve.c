@@ -296,8 +296,8 @@
 #define USE_GET   /* RWCox: extract multiple timeseries at once for speed */
 
 /*---------------------------------------------------------------------------*/
-/* Decide on the inclusion of mri_matrix.h before including mri_lib.h 
-   The latter now ends up including mri_matrix.h in a roundabout way 
+/* Decide on the inclusion of mri_matrix.h before including mri_lib.h
+   The latter now ends up including mri_matrix.h in a roundabout way
    via suma_utils.h                                   ZSS Nov. 21 2014   */
 #ifndef FLOATIZE
 # include "matrix.h"          /* double precision */
@@ -313,7 +313,7 @@
 # define MPAIR    float_pair
 #endif
 
-#include "mrilib.h"           /* Keep after decision about matrix.h inclusion 
+#include "mrilib.h"           /* Keep after decision about matrix.h inclusion
                                                       ZSS  Nov. 21 2014*/
 
 
@@ -1023,6 +1023,10 @@ void display_help_menu(int detail)
     "                      the string '!!' somewhere in their text.         \n"
     "               *N.B.: Error and Warning messages go to stderr and      \n"
     "                      also to file " PROGRAM_NAME ".err.               \n"
+    "                      ++ You can disable the creation of this .err     \n"
+    "                         file by setting environment variable          \n"
+    "                         AFNI_USE_ERROR_FILE to NO before running      \n"
+    "                         this program.                                 \n"
     "               *N.B.: The optional number 'g' that appears is the      \n"
     "                      number of warnings that can be ignored.          \n"
     "                      That is, if you use -GOFORIT 7 and 9 '!!'        \n"
@@ -1127,8 +1131,8 @@ void display_help_menu(int detail)
     "        times (in seconds) for the stimuli in class 'k' for its        \n"
     "        corresponding run of data; times are relative to the start of  \n"
     "        the run (i.e., sub-brick #0 occurring at time=0).              \n"
-    "    *** The DURATION of the stimulus is encoded in the 'Rmodel         \n"
-    "        argument, described below.                                     \n"
+    "    *** The DURATION of the stimulus is encoded in the 'Rmodel'        \n"
+    "        argument, described below. Units are in seconds, not TRs!      \n"
     "        -- If different stimuli in the same class 'k' have different   \n"
     "           durations, you'll have to use the dmBLOCK response model    \n"
     "           and '-stim_times_AM1' or '-stim_times_AM2', described below.\n"
@@ -1566,7 +1570,7 @@ void display_help_menu(int detail)
     "   This option allows you to input FSL-style 3-column timing files,    \n"
     "   where each line corresponds to one stimulus event/block; the        \n"
     "   line '40 20 1' means 'stimulus starts at 40 seconds, lasts for      \n"
-    "   20 seconds, and is given amplitude 1'.  Since In this format,       \n"
+    "   20 seconds, and is given amplitude 1'.  Since in this format,       \n"
     "   each stimulus can have a different duration and get a different     \n"
     "   response amplitude, the 'Rmodel' must be one of the 'dm'            \n"
     "   duration-modulated options above ['dmUBLOCK(1)' is probably the     \n"
@@ -2144,6 +2148,7 @@ void get_options
   int s;                            /* number of linear constraints in GLT */
   int iglt = 0;                     /* general linear test index */
   int nerr ;
+  float ttmax=big_time ;   /* 28 Aug 2015 */
 
   /*-- addto the arglist, if user wants to --*/
   { int new_argc ; char **new_argv ;
@@ -2294,6 +2299,19 @@ void get_options
           option_data->input_filename[slen-1] = '\0' ; /* trim last blank */
           nopt = iopt ;
 #endif
+        { THD_3dim_dataset *dset ; int lmax ;
+          dset = THD_open_dataset (option_data->input_filename);
+          CHECK_OPEN_ERROR(dset,option_data->input_filename) ;
+          lmax = DSET_NVALS(dset) ;
+          if( DSET_IS_TCAT(dset) && !option_data->tcat_noblock ){
+            int it ;
+            for( lmax=2,it=0 ; it < dset->tcat_num ; it++ )
+              lmax = MAX( lmax , dset->tcat_len[it] ) ;
+          }
+          ttmax = lmax * DSET_TR(dset) ;
+          DSET_delete(dset) ;
+        }
+
         continue;
       }
 
@@ -2787,7 +2805,7 @@ void get_options
 
         /* check number of reasonable times */
 
-        nc = mri_counter( tim , 0.0f , big_time ) ;
+        nc = mri_counter( tim , 0.0f , ttmax ) ;
 
         if( tim != basis_times[k] ) mri_free(tim) ;
 
@@ -3833,6 +3851,7 @@ void read_input_data
   int nblk,npol , p1,nc , nsl ;
   unsigned int mk,gp ;
   float dtloc=0.0f ;
+  float ttmax=big_time ;   /* 28 Aug 2015 */
 
 
 ENTRY("read_input_data") ;
@@ -3965,6 +3984,8 @@ ENTRY("read_input_data") ;
       }
       INFO_message("using NT=%d time points for -nodata",nt) ;
 
+      ttmax = basis_TR * nt ; /* 28 Aug 2015 */
+
       nxyz = 0;  /* signal that there is no data */
     }
 
@@ -3993,11 +4014,13 @@ ENTRY("read_input_data") ;
       else if( option_data->force_TR > 0.0 )
         dtloc = basis_TR = option_data->force_TR;
       if (verb) INFO_message("1D TR is %.3f seconds", basis_TR);
+
+      ttmax = basis_TR * nt ; /* 28 Aug 2015 */
    }
 
   else if (option_data->input_filename != NULL) /*----- 3D+time dataset -----*/
     {
-      int nxd , nyd , nzd ;
+      int nxd , nyd , nzd , lmax=0 ;
 
       *dset_time = THD_open_dataset (option_data->input_filename);
       CHECK_OPEN_ERROR(*dset_time,option_data->input_filename);
@@ -4019,7 +4042,7 @@ ENTRY("read_input_data") ;
                      ttt) ;
       }
 
-      nt   = DSET_NUM_TIMES (*dset_time);
+      nt   = DSET_NUM_TIMES (*dset_time); lmax = nt ;
       nxyz = DSET_NVOX (*dset_time);
       nxd  = DSET_NX(*dset_time) ;
       nyd  = DSET_NY(*dset_time) ;
@@ -4069,8 +4092,10 @@ ENTRY("read_input_data") ;
           option_data->concat_filename = NULL ;
         }
         if( !option_data->tcat_noblock ){
-          for( it=0 ; it < (*dset_time)->tcat_num ; it++ )
+          for( it=0 ; it < (*dset_time)->tcat_num ; it++ ){
             lmin = MIN( lmin , (*dset_time)->tcat_len[it] ) ;
+            lmax = MAX( lmax , (*dset_time)->tcat_len[it] ) ;  /* 28 Aug 2015 */
+          }
           option_data->tcat_noblock = (lmin < 2) ;
         }
         if( option_data->tcat_noblock ){
@@ -4094,6 +4119,8 @@ ENTRY("read_input_data") ;
           }
         }
       }
+
+      ttmax = dtloc * lmax ; /* 28 Aug 2015 */
 
       if( option_data->automask ){            /* 15 Apr 2005: automasking */
         MRI_IMAGE *qim ; int mc ;
@@ -6827,7 +6854,8 @@ ENTRY("calculate_results") ;
       WARNING_message("Problems with the X matrix columns, listed below:") ;
       for( k=0 ; iar[2*k] >= 0 ; k++ ){
         if( iar[2*k+1] >= 0 ){
-          WARNING_message("!! * Columns %d [%s] and %d [%s] are nearly collinear!",
+          WARNING_message(
+             "!! * Columns %d [%s] and %d [%s] are (nearly?) collinear!",
                   iar[2*k]  ,COLUMN_LABEL(iar[2*k]  ),
                   iar[2*k+1],COLUMN_LABEL(iar[2*k+1]) ) ;
           nerr++ ; badlev++ ;
@@ -8841,7 +8869,7 @@ int main
 #ifdef USING_MCW_MALLOC
    enable_mcw_malloc() ;
 #endif
-   mainENTRY(PROGRAM_NAME " main") ; machdep() ;
+   mainENTRY(PROGRAM_NAME " main") ; AFNI_process_environ(NULL) ; machdep() ;
   SET_message_file( PROGRAM_NAME ".err" ) ;
 
   commandline = tross_commandline( PROGRAM_NAME , argc , argv ) ;
@@ -9028,8 +9056,16 @@ MRI_IMAGE * PLOT_matrix_gray( matrix X )
    if( nts < 1 || npt < 2 ) return NULL ;
 
    xar = (float **)malloc( sizeof(float *)*nts ) ;
+   if( !xar ) {
+     ERROR_message("PLOT_mg: failed to alloc %d float ptrs", nts);
+     return NULL;
+   }
    for( jj=0 ; jj < nts ; jj++ ){
-     xar[jj] = (float *)malloc( sizeof(float *)*npt ) ;
+     xar[jj] = (float *)malloc( sizeof(float)*npt ) ;
+     if( !xar[jj] ) {
+       ERROR_message("PLOT_mg: failed to alloc %d floats @jj=%d", npt, jj);
+       return NULL;
+     }
      for( ii=0 ; ii < npt ; ii++ ) xar[jj][ii] = X.elts[ii][jj] ;
    }
 
@@ -9058,15 +9094,24 @@ MRI_IMAGE * PLOT_matrix_gray( matrix X )
 
 /*-----------------------------------------------------------------*/
 
+#undef  PLOT_MAX
+#define PLOT_MAX 3333
+
 void JPEG_matrix_gray( matrix X , char *fname )
 {
    MRI_IMAGE *im ;
 
    if( fname == NULL || *fname == '\0' ) return ;
 
+   if( X.cols > PLOT_MAX || X.rows > PLOT_MAX ){  /* 30 Apr 2015 */
+     WARNING_message("Can't plot %s -- matrix size %dx%d exceeds max=%d",
+                     fname , X.rows , X.cols , PLOT_MAX ) ;
+     return ;
+   }
+
    im = PLOT_matrix_gray( X ) ;
    if( im == NULL ){
-     WARNING_message("Can't save %s because of internal error!",fname) ;
+     WARNING_message("Can't plot %s -- internal error!",fname) ;
      return ;
    }
 

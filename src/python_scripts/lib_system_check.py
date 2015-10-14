@@ -113,6 +113,7 @@ class SysInfo:
       # locate various data trees, and possibly show recent history
       self.show_data_dir_info('AFNI_data6', 'history.txt')
       self.show_data_dir_info('suma_demo', 'README.archive_creation')
+      self.show_data_dir_info('FATCAT_DEMO', 'README.timestamp')
 
       evar = 'AFNI_ATLAS_DIR'
       tryenv = 0                        # might suggest setting evar
@@ -254,8 +255,8 @@ class SysInfo:
          print
 
    def show_path_vars(self, header=1):
-      print UTIL.section_divider('path vars', hchar='-')
-      for evar in ['PATH', 'PYTHONPATH',
+      print UTIL.section_divider('env vars', hchar='-')
+      for evar in ['PATH', 'PYTHONPATH', 'R_LIBS',
                    'LD_LIBRARY_PATH',
                    'DYLD_LIBRARY_PATH', 'DYLD_FALLBACK_LIBRARY_PATH']:
          if os.environ.has_key(evar): print "%s = %s\n" % (evar, os.environ[evar])
@@ -292,6 +293,7 @@ class SysInfo:
                self.comments.append("consider only 1 version of AFNI in PATH")
       print
 
+      # try select AFNI programs
       print 'testing ability to start various programs...'
       ind = '%8s' % ' '
       indn = '\n%8s' % ' '
@@ -306,9 +308,11 @@ class SysInfo:
             fcount += 1
          else: print '    %-20s : success' % prog
       print
+      pfailure = fcount == len(proglist)
 
+      # if complete failure, retry from exec dir
       ascdir = UTIL.executable_dir()
-      if fcount == len(proglist) and self.get_afni_dir() != ascdir:
+      if pfailure and self.get_afni_dir() != ascdir:
          fcount = 0
          print 'none working, testing programs under implied %s...' % ascdir
          for prog in proglist:
@@ -321,6 +325,25 @@ class SysInfo:
          print
          if fcount < len(proglist):
             self.comments.append('consider adding %s to your PATH' % ascdir)
+
+      print 'checking for R packages...'
+      cmd = 'rPkgsInstall -pkgs ALL -check'
+      st, so, se = BASE.shell_exec2(cmd, capture=1)
+      if st or len(se) < 2: okay = 0
+      else:
+         if se[1].startswith('++ Note:'): se = se[2:]
+         okay = 1
+         # require every subsequent string to say verified
+         for estr in se:
+            if estr != '' and estr.find('has been verified') < 0:
+               okay = 0   # any failure is terminal
+               break
+      if okay:
+         print '    %-20s : success' % cmd
+      else:
+         print '    %-20s : FAILURE' % cmd
+         print ind + indn.join(se)
+      print
 
       print 'checking for $HOME files...'
       flist = ['.afnirc', '.sumarc', '.afni/help/all_progs.COMP']

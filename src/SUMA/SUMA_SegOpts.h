@@ -109,6 +109,7 @@ typedef struct {
    NI_str_array *feats, *clss, *featsfam;
    float **feat_exp;
    int featexpmeth;
+   int featmatchmode;
    int Other;
    int *keys;
    
@@ -180,6 +181,8 @@ typedef struct {
    
    int       N_hspec;
    SUMA_HIST **hspec;
+   
+   double mix_frac_floor;
 } SEG_OPTS;
 
 void GenPriors_usage(int) ;

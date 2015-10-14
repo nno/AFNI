@@ -1,9 +1,9 @@
 
 .. _Making_ROIs:
 
-*************************
-Making (networks of) ROIs
-*************************
+*****************************************
+Making (networks of) ROIs: **3dROIMaker**
+*****************************************
 
 .. contents::
    :depth: 3
@@ -38,8 +38,8 @@ defined as a separate brick.
 
 |
 
-Operation: 3dROIMaker
-=====================
+Operation
+=========
 
 For historical reasons, the terminology of several ``3dROIMaker``
 option names and descriptions comes from a scenario where the input
@@ -63,7 +63,7 @@ Broadly, ``3dROIMaker`` can be used to:
 
   * subtraction can be done before or after thresholding the input
     image (``-csf_skel *``, ``-wm_skel *``, ``-trim_off_wm``);
-  * an other map can itself be thresholded from the commandline
+  * an other map can itself be thresholded from the command line
     (``-skel_thr *``);
 
 * eliminate blobs based on a volume threshold (``-volthr *``);
@@ -187,11 +187,12 @@ given method as a typical default:
 .. figure:: media/ROIS/ROI_neigh_img.png
    :width: 80%
    :align: center
-
+   :name: media/ROIS/ROI_neigh_img.png
+   
    *Basic voxel terminology, and its use in defining three standard,
    symmetric (nearest-)neighborhoods for an individual voxel. The
    central voxel is darkened, with each type of neighborhood colored
-   in a 3D, high-tec, separated image.*
+   in a 3D, high-tec, separated image.* :ref:`(link)<media/ROIS/ROI_neigh_img.png>`
 
 For example, the default in each of AFNI's ``3dClustSim`` and the
 Clusterize function is a face-wise neighbor definition. The same is
@@ -506,7 +507,7 @@ has the following properties:
 
 #. it is already parcellated into integer-labelled ROIs;
 #. its ROIs are contiguous;
-#. a labeltable attached is attached.
+#. a labeltable is attached.
 
 The FATCAT_DEMO contains an example of such a set (output from
 FreeSurfer) in the script ``Do_11_RUNdti_Connectome_Examp.tcsh``.

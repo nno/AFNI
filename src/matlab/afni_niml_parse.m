@@ -1,127 +1,263 @@
-function niml = afni_niml_pase(s)
+function niml_cell = afni_niml_parse(s)
 % Simple parsing routine for AFNI NIML datasets
 %
 % N=AFNI_NIML_PARSE(S) parses the niml string S and returns a parsed
-% stucture P.
+% structure P.
 %
 % P can either be an niml element, or a group of niml elements. In the
-% former case, P contains a field .data; in the latter, a cell .nodes.
-%
-% If S contains multiple niml datasets that ae not in a group, then N will
-% be a cell with the parsed datasets.
+% formder case, P contains a field .data; in the latter, a cell .nodes.
 %
 % This function is more or less the inverse of AFNI_NIML_PRINT.
 %
-% Many thanks to Ziad Saad, who wote afni_niml_read and other routines
+% Many thanks to Ziad Saad, who wrote afni_niml_read and other routines
 % that formed the basis of this function.
 %
 % Please note that this function is *VERY EXPERIMENTAL*
 %
-% NNO Dec 2009 <n.oostehof@bangor.ac.uk>
+% NNO Dec 2009 <n.oosterhof@bangor.ac.uk>
+% NNO May 2015 <nikolaas.oosterhof@unitn.it>
 
-% if the input is a string (i.e. not called recursively), parse header and
-% body and put them in a stuct s.
+    len_s=numel(s);
 
-niml_cell=pase_string(s);
-if numel(niml_cell)==1
-    niml=niml_cell{1};
-else
-    niml=niml_cell;
-end
+    niml_cell=cell(1,1);
 
+    pos=1;
+    elem_counter=0;
+    while pos<len_s
+        [niml,pos]=niml_parse_helper(s,1);
 
-function niml=pase_string(s)
-    header_body=afni_nel_parseheaderbody(s);
-    % make sue we only have the fieldnames we expect
-    if ~isempty(setxor(fieldnames(header_body),...
-                            {'headername','headertext','body'}))
-        error(['Illegal struct s, expected s.headername, '...
-                        's.headetext, s.body']);
+        elem_counter=elem_counter+1;
+        if numel(niml_cell)>elem_counter
+            % allocate more space
+            niml_cell{1+2*elem_counter,1}=[];
+        end
+
+        niml_cell{elem_counter}=niml;
     end
 
-    if numel(header_body)>1
-        % In Matlab, the esult is a Nx1 struct for N NIML elements
-        niml=cell(size(header_body));
-        for k=1:numel(header_body)
-            niml{k}=header_body2niml(header_body(k));
-        end
-    elseif iscell(header_body.headername)
-        % In Octave, the esult is a 1x1 struct, with each field
-        % being an Nx1 cell, fo N NIML elements
-        niml=cell(size(header_body.headername));
-        for k=1:numel(header_body.headername)
-            hb=struct();
-            hb.headername=header_body.headername{k};
-            hb.headertext=header_body.headertext{k};
-            hb.body=header_body.body{k};
-            niml{k}=header_body2niml(hb);
-        end
-    else
-        % single element
-        niml={header_body2niml(header_body)};
+    niml_cell=niml_cell(1:elem_counter);
+
+
+function [niml,pos]=niml_parse_helper(s, pos)
+% pos is current character that has to be parsed
+% i.e. pos=1 means the very beginning of the string
+
+    pos=consume_whitespace_optionally(s, pos);
+
+    if starts_with(s,pos,'<xml')
+        % ignore anything in between xml characters
+        pos=find_char(s,pos,'>');
+        pos=consume_whitespace_optionally(s, pos);
     end
 
-function niml=header_body2niml(header_body)
-    assert(isstruct(header_body));
-    assert(numel(header_body)==1);
+    header_start_pos=find_char(s, pos, '<');
 
-    % pase the header part
-    niml=afni_nel_parsekeyvalue(header_body.headertext);
-    niml.name=header_body.headername;
+    key_values_start_pos=find_whitespace(s, header_start_pos);
 
-    if isfield(niml,'ni_form') && strcmp(niml.ni_form,'ni_group')
-        % this is a goup of elements. parse each of the elements in the group
-        % and put the esults in a field .nodes
-        niml.nodes=pase_string(header_body.body);
+    header_name=char(s(header_start_pos:(key_values_start_pos-2)));
+    header_end_pos=find_char(s, key_values_start_pos, '>');
+
+    s_key_values=s(key_values_start_pos:(header_end_pos-2));
+
+    niml=niml_parse_header_key_values(s_key_values);
+    niml.name=header_name;
+
+    assert(header_name(1)~='/');
+
+    is_group=isfield(niml,'ni_form') && ...
+                    strcmp(niml.ni_form,'ni_group');
+    if is_group
+        [niml,pos]=niml_parse_group(s, header_end_pos, niml);
     else
-        % this is a single element
+        [niml,pos]=niml_parse_data(s, header_end_pos, niml);
+    end
 
-        % set a few fields
-        niml.vec_typ = afni_nel_getvectype(niml.ni_type);
-        niml.vec_len = str2num(niml.ni_dimen);
-        niml.vec_num = length(niml.vec_typ);
+    pos=consume_whitespace_optionally(s, pos);
+    pos=niml_consume_endmarker(s, pos, niml);
+    pos=consume_whitespace_optionally(s, pos);
 
-        % pase only
-        if (~afni_ni_is_numeric_type(niml.vec_typ)),
-          %fpintf(2,'Data not all numeric, will not parse it');
 
-            niml.data = afni_nel_parse_nonnumeric(niml, header_body.body);
+
+function [niml,pos]=niml_parse_group(s, pos, niml)
+    end_marker=['</' niml.name '>'];
+
+    niml_nodes=cell(5,1);
+    n_niml_nodes=0;
+    while true
+        pos=consume_whitespace_optionally(s, pos);
+
+        if starts_with(s, pos, end_marker)
+            niml.nodes=niml_nodes(1:n_niml_nodes);
+            return
+        end
+
+        n_niml_nodes=n_niml_nodes+1;
+
+        if n_niml_nodes>numel(niml_nodes)
+            % double the space
+            niml_nodes{1+2*n_niml_nodes}=[];
+        end
+
+        % use recursive call
+        [niml_nodes{n_niml_nodes},pos]=niml_parse_helper(s, pos);
+    end
+
+
+function [niml,pos]=niml_parse_data(s, pos, niml)
+% parse data in body
+    niml.vec_typ = afni_nel_getvectype(niml.ni_type);
+    niml.vec_len = str2num(niml.ni_dimen);
+    niml.vec_num = length(niml.vec_typ);
+    if afni_ni_is_numeric_type(niml.vec_typ)
+        [niml,pos] = niml_parse_numeric_data(s, pos, niml);
+    else
+        [niml,pos]= niml_parse_mixed_data(s, pos, niml);
+    end
+
+
+function [niml,pos] = niml_parse_numeric_data(s, pos, niml)
+% parse numeric data in body, supporting binary data
+    n_columns=niml.vec_num;
+    n_rows=niml.vec_len;
+
+    is_binary=isfield(niml,'ni_form') && ...
+            starts_with(niml.ni_form,1,'binary');
+
+    if is_binary
+        ni_def=afni_ni_defs();
+
+        vec_typ=niml.vec_typ;
+        if ~all(vec_typ(1)==vec_typ)
+            error('Mixed data not supported for binary data');
+        end
+
+        ni_def_index=niml.vec_typ(1)+1; % base 1
+        bytes_per_element=ni_def.size_bytes(ni_def_index);
+        n_data_bytes=bytes_per_element*n_columns*n_rows;
+
+        data_type=func2str(ni_def.type{ni_def_index});
+
+
+        data_bytes=uint8(s(pos+(0:(n_data_bytes-1))));
+        data=typecast(data_bytes,data_type);
+
+        d_pos=n_data_bytes+1;
+
+        if niml_binary_data_requires_byteswap(niml.ni_form)
+            data=afni_swapbytes(data);
+        end
+
+    else
+        % data in ASCII form
+        data_string=char(s(pos:end));
+        [data,unused,unused,d_pos]=sscanf(data_string,...
+                                        '%f',n_columns*n_rows);
+    end
+
+    niml.data = reshape(double(data), niml.vec_num, niml.vec_len)';
+
+    pos=pos+d_pos-1;
+
+
+function tf=niml_binary_data_requires_byteswap(ni_form)
+    [unused,unused,endian]=computer();
+    switch lower(ni_form)
+        case 'binary.lsbfirst'
+            tf=endian~='L';
+
+        case 'binary.msbfirst'
+            tf=endian~='M';
+
+        case 'binary'
+            % native
+            tf=false;
+
+        otherwise
+            error('unrecognized ni_form ''%s''', ni_form);
+    end
+
+
+function [niml, pos]=niml_parse_mixed_data(s, pos, niml)
+% parse mixed data in ASCII format
+    pos=consume_whitespace_optionally(s, pos);
+    n_col=niml.vec_num;
+    n_row=niml.vec_len;
+    vec_typ=niml.vec_typ;
+
+    col_is_numeric=true(1,n_col);
+
+    row_data_cell=cell(1,n_col);
+
+    for row=1:n_row
+        is_first_row=row==1;
+
+        for col=1:n_col
+
+            [data_elem,pos]=niml_parse_string_data_element(s, pos, ...
+                                                    vec_typ(col));
+
+            row_data_cell{col}=data_elem;
+
+            if is_first_row
+                col_is_numeric(col)=isnumeric(data_elem);
+            end
+        end
+
+        if is_first_row
+            all_col_are_numeric=all(col_is_numeric);
+            if all_col_are_numeric
+                data=zeros(n_row,n_col);
+            else
+                data=cell(n_row,n_col);
+            end
+        end
+
+        if all_col_are_numeric
+            row_data=cat(2,row_data_cell{:});
         else
-            niml.data = afni_nel_parse_data(niml, header_body.body);
+            row_data=row_data_cell;
+        end
+
+        data(row,:)=row_data;
+    end
+
+    if all(col_is_numeric)
+        niml.data=data;
+    else
+        niml.data=cell(1,n_col);
+        for col=1:n_col
+            col_data=data(:,col);
+            niml.data{col}=cat(1,col_data{:});
         end
     end
 
-function p=afni_nel_parsekeyvalue(s)
-% pases a string of the form "K1=V1 K2=V2 ...
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function p=niml_parse_header_key_values(s)
+% parse a string of the form "K1=V1 K2=V2 ...
     expr='\s*(?<lhs>\w+)\s*=\s*"(?<rhs>[^"]+)"';
-    hh=regexp(s,expr,'names');
+    hh=regexp(char(s),expr,'names');
 
-    p=pase_to_struct(hh);
-
-function p=pase_to_struct(hh)
-    c=struct2cell(hh);
-
-    if iscell(c) && iscell(c{1})
-        % Octave case
-        c1=c{1}(:);
-        c2=c{2}(:);
+    if numel(hh)==1
+        % Octave regexp output
+        lhs=hh.lhs;
+        rhs=hh.rhs;
     else
-        % matlab case
-        c1=squeeze(c(1,:,:));
-        c2=squeeze(c(2,:,:));
+        % Matlab regexp output
+        lhs={hh(:).lhs};
+        rhs={hh(:).rhs};
     end
-    p = cell2struct(c2,c1,1);
+
+    p = cell2struct(rhs, lhs,2); clear hh;
 
 
-function p=afni_nel_parseheaderbody(s)
-% pases a header and body
-% in the fom <HEADERNAME HEADERTEXT>BODY</HEADERNAME>
-    expr = '<(?<headername>\w+)(?<headertext>.*?)>(?<body>.*?)</\1>';
-    p = regexp(s, expr,'names');
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% parse helper functions
 
 function vec_typ=afni_nel_getvectype(tt)
-% gets the vecto type for a data element
+% gets the vector type for a data element
+%
+% TODO: this function needs refactoring
     vec_typ=zeros(1,1000);
     nn=0;
     while (~isempty(tt)),
@@ -130,7 +266,7 @@ function vec_typ=afni_nel_getvectype(tt)
         N = 1;
         [tttt,ttt] = strtok(ttt,'*');
         Ntttt = str2double(tttt);
-        if (~isnan(Ntttt)),  %have a numbe, get the type
+        if (~isnan(Ntttt)),  %have a number, get the type
             N = Ntttt;
             tttt = strtok(ttt,'*');
         end
@@ -139,27 +275,164 @@ function vec_typ=afni_nel_getvectype(tt)
     end
 
     vec_typ=vec_typ(1:nn)-1; % convert to base0, as in the niml.h.
-                             %
-                             % This is a point of concern as the
-                             % afni_ni_rowtype_name_to_code function
-                             % seems to pefer base1
-                             %
-                             % (if only matlab used base0 indexing...)
 
 
-function p = afni_nel_parse_data(nel, data)
-    d=sscanf(data,'%f');
-    p = reshape(d, nel.vec_num, nel.vec_len)';
+function pos=niml_consume_endmarker(s, pos, niml)
+    %end_marker=['</' niml.name '>'];
+    pos=consume_string(s, pos, '</');
+    pos=consume_whitespace_optionally(s, pos);
+    pos=consume_string(s, pos, niml.name);
+    pos=consume_string(s, pos, '>');
 
-function p =afni_nel_parse_nonnumeric(nel,data)
-    if strcmp(nel.ni_type,'String')
-        p=strtrim(data);
-        if strcmp(p([1 end]),'""')
-            p=p(2:(end-1)); % remove surrounding quotes
-        end
+    %pos=consume_string(s, pos, end_marker);
+
+function [data,pos]=niml_parse_string_data_element(s, pos, vec_typ)
+    % parse data in ascii format
+
+    n_s=numel(s);
+    if pos >= n_s
+        error('no data to parse');
+    end
+
+    % define delimeters
+    quote=uint8('"''');
+    data_delim_char=uint8(';');
+    ni_def=afni_ni_defs();
+
+    % process white space
+    pos=consume_whitespace_optionally(s, pos);
+
+    % if quote, process it and use quote as delimeter
+    has_quote=any(s(pos)==quote);
+
+    if has_quote
+        pos=pos+1;
+        delimeter_chars=quote;
     else
-        p=data; %do nothing
+        delimeter_chars=[get_whitespace_characters() data_delim_char];
+    end
+
+    % start of data element in string representation
+    start_pos=pos;
+
+    % take all characters until delimeter is found
+    while pos < n_s && ~any(s(pos)==delimeter_chars)
+        pos=pos+1;
+    end
+
+    data_value=char(s(start_pos:(pos-1)));
+
+    % if quote
+    if has_quote
+        assert(any(s(pos)==quote)); % enforced by code above
+        pos=pos+1;
+    end
+
+    % process remaining whitespace
+    pos=consume_whitespace_optionally(s, pos);
+
+    string_def_index=strmatch('String',ni_def.type_name)-1;
+    is_string=vec_typ==string_def_index;
+
+    if is_string
+        % convert data
+        data={niml_unescape_string(data_value)};
+    else
+        % convert to numeric
+        data=str2double(data_value);
+        assert(numel(data)==1);
     end
 
 
+function s_unescaped=niml_unescape_string(s)
+    ni_def=afni_ni_defs();
+    escape=ni_def.escape;
+
+    s_unescaped=char(s);
+
+    n=size(escape,1);
+    for k=n:-1:1
+        s_unescaped=strrep(s_unescaped,escape{k,1},escape{k,2});
+    end
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% general string matching
+function pos=consume_string_optionally(s, pos, needle)
+    % skips needle if s starts with it at pos
+    if starts_with(s, pos, needle)
+        pos=pos+numel(needle);
+    end
+
+function pos=consume_string(s, pos, needle)
+    % skips needle if s starts with it at pos, raises an error if that is
+    % not the case
+    c_pos=consume_string_optionally(s, pos, needle);
+    if c_pos==pos
+        error('did not find ''%s'' at position %d: ''%s ...'')', ...
+                    needle, pos, s(pos+(0:10)));
+    end
+    pos=c_pos;
+
+function pos=consume_char_optionally(s, pos, c)
+    % skip any characters in c from s starting at pos
+    n=numel(s);
+    c_bytes=uint8(c);
+    while pos<=n && any(s(pos)==c_bytes)
+        pos=pos+1;
+    end
+
+
+function next_pos=consume_whitespace_optionally(s, pos)
+    % finds the next character position that is not whitespace in
+    % string s starting at pos
+    next_pos=consume_char_optionally(s, pos, get_whitespace_characters());
+
+
+function tf=starts_with(s, pos, needle)
+    % sees whether s starts with needle at pos
+    n_s=numel(s);
+    n_needle=numel(needle);
+
+    tf=n_needle<=(n_s-pos+1) && ...
+                    strcmp(char(s(pos+(0:(n_needle-1)))),needle);
+
+function char_pos=find_char(s, pos, c, negate)
+    % finds the next character position after the first occurence
+    % of c in string s starting at pos. c can contain multiple characters,
+    % in which case the first occurence of either is matched.
+    % If negate==true, then the first non-occurence of c is returned.
+    if nargin<4
+        negate=false;
+    end
+
+    if negate
+        offset=0;
+    else
+        offset=1;
+    end
+
+    c_bytes=uint8(c);
+
+    n=numel(s);
+    for start_pos=pos:n
+        if any(s(start_pos)==c_bytes)==~negate
+            char_pos=start_pos+offset;
+            return;
+        end
+    end
+
+    error('Character %s not found', c);
+
+
+function next_pos=find_whitespace(s, pos)
+    % finds the next character position after the first occurence
+    % of whitespace in string s starting at pos.
+    whitespace_characters=get_whitespace_characters();
+    next_pos=find_char(s, pos, whitespace_characters, false);
+
+
+function whitespace_characters=get_whitespace_characters()
+    whitespace_characters=uint8(sprintf(' \t\r\n\f\v'));
 

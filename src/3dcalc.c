@@ -852,7 +852,7 @@ DSET_DONE: continue;  /*** target for various goto statements above ***/
 
    for (ids=0; ids < 26; ids ++)
       if (ntime[ids] > 1 && ntime[ids] != ntime_max ) {
-          ERROR_exit("Multi-brick datasets don't match!\n") ;
+         ERROR_exit("Multi-brick datasets don't have same number of volumes!\n");
       }
 
    /* 17 Apr 1998: if all input datasets are 3D only (no time),
@@ -1634,7 +1634,9 @@ int main( int argc , char *argv[] )
                                 DSET_BRIKNAME(CALC_dset[ids]) ) ;
 
        }
-       angle = dset_obliquity_angle_diff(new_dset, CALC_dset[iii], -1.0);
+       /* allow for small angle differences   22 May 2015 [rickr] */
+       angle = dset_obliquity_angle_diff(new_dset, CALC_dset[iii],
+                                         OBLIQ_ANGLE_THRESH);
        if (angle > 0.0) {
          WARNING_message(
            "dataset '%c'=%s has an obliquity difference of %f degrees with %s\n",

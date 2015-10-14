@@ -41,7 +41,7 @@ int main( int argc , char *argv[] )
       "-vbb xx = stdev of baseline polynomial coefficients  [default=3   ]\n"
       "-blr xx = FWHM of blurring to be applied to baseline [default=5   ]\n"
       "-mxa xx = max value of ARMA11 parameter 'a' to use   [default=+0.8]\n"
-      "-mnb xx = min value of ARMA11 parameter 'a' to use   [default= 0.0]\n"
+      "-mna xx = min value of ARMA11 parameter 'a' to use   [default= 0.0]\n"
       "-mxb xx = max value of ARMA11 parameter 'b' to use   [default=+0.5]\n"
       "-mnb xx = max value of ARMA11 parameter 'b' to use   [default=-0.5]\n"
       "-smx xx = max value of time series stdev to use      [default=5   ]\n"
@@ -67,6 +67,19 @@ int main( int argc , char *argv[] )
 
    iarg = 1 ;
    while( iarg < argc ){
+
+
+     if( strcmp(argv[iarg],"-tdof") == 0 ){  /* hidden option */
+       float tdof=0.0f , atd=0.0f ;
+       iarg++ ; if( iarg >= argc ) ERROR_exit("need argument after -tdof!") ;
+       tdof = (float)strtod(argv[iarg],NULL) ; atd = fabsf(tdof) ;
+       if( atd > 0.0f && atd < 4.0f ) ERROR_exit("illegal value after -tdof") ;
+       if( tdof != 0.0f ){
+         INFO_message("Transforming Gaussian deviates to t(DOF=%g)",tdof) ;
+         mri_genARMA11_set_tdof(tdof) ;
+       }
+       iarg++ ; continue ;
+     }
 
      if( strncmp(argv[iarg],"-prefix",4) == 0 ){
        iarg++; if( iarg >= argc ) ERROR_exit("need arg after %s",argv[iarg-1]);

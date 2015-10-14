@@ -78,6 +78,7 @@ typedef struct {
    char *BrikName;
    char *NameAsParsed;
    char *cwdAsParsed;
+   char *ExistsAs;
 }SUMA_PARSED_NAME;
 
 typedef struct {
@@ -105,6 +106,7 @@ typedef struct {
                       will be a pointer copy so don't free it.*/
    int type; /* 0 -- A container widget, not one to be pressed 
                 1 -- A regular widget */
+   void *w; /* A copy of the widget pointer... Is this wise?*/
 }GUI_WIDGET_HELP;
 
 
@@ -258,8 +260,10 @@ char *args_in_niml_quotes(char **argv, int *kar, int N_argv, int clearused);
 char *args_in_simple_quotes(char **argv, int *kar, int N_argv, int clearused);
 char * SUMA_append_string(char *s1, char *s2);
 char * SUMA_append_extension(char *s1, char *s2);
-char * SUMA_append_replace_string(  char *s1, char *s2, 
-                                    char *Spc, int whichTofree);
+char * SUMA_append_replace_string(char *s1, char *s2, char *Spc,int whichTofree);
+char * SUMA_ar_string(char *s1, char *s2, char *Spc, int whichTofree);
+char * SUMA_append_replace_string_eng(char *s1, char *s2, char *Spc, 
+                                      int whichTofree, int cleanstart);
 char * SUMA_append_replace_num(char *s1, char *form, double num, 
                                SUMA_VARTYPE tp, int whichTofree);
 char * SUMA_truncate_string (char *s1, int length);

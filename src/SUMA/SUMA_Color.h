@@ -6,12 +6,16 @@
 #define PSV_NOTHING 0
 #define PSV_BIND_VOL    1
 
-
+byte SUMA_Val_Meets_Thresh(float val, double *ThreshRange, 
+                           SUMA_THRESH_MODE ThrMode);
 int SUMA_a_good_col(char *name, int i, float *acol);
+SUMA_COLOR_MAP *SUMA_LabelsKeys2Cmap (char **str, int num, int *keys, 
+                                      float **cols, int nc, char *Name);
 SUMA_COLOR_MAP * SUMA_MakeColorMap (float **Fiducials, int Nfid, byte rgba,
                                     int Ncols, SUMA_Boolean SkipLast, 
                                     char *Name);
 void SUMA_Free_ColorMap (SUMA_COLOR_MAP* SM);
+SUMA_COLOR_MAP* SUMA_DuplicateColorMap (SUMA_COLOR_MAP *cin, char *newname);
 SUMA_SCALE_TO_MAP_OPT * SUMA_ScaleToMapOptInit(void);
 void SUMA_Free_ColorScaledVect (SUMA_COLOR_SCALED_VECT * S);
 SUMA_COLOR_SCALED_VECT * SUMA_Create_ColorScaledVect(int N_Node, int mode);
@@ -94,6 +98,21 @@ SUMA_Boolean SUMA_MovePlaneUp (SUMA_ALL_DO *ado, char *Name);
 SUMA_Boolean SUMA_MovePlaneDown (SUMA_ALL_DO *ado, char *Name);
 SUMA_OVERLAYS * SUMA_NewPlaneSearch(SUMA_ALL_DO *ado, 
                                     SUMA_OVERLAYS *Overlay);
+SUMA_Boolean SUMA_LoadCIFTIDO (char *fname, 
+                        SUMA_DO_CoordUnits coord_type, SUMA_DSET **odset, 
+                        int OkAdopt, int SetupOverlay, int LaunchDisplay, 
+                        int MakeOverlayCurrent, SUMA_OVERLAYS **used_over);
+SUMA_CIFTI_DO * SUMA_CIFTI_DO_from_dset(SUMA_DSET *cdset);
+char *SUMA_CIFTI_find_sub_domain(SUMA_CIFTI_DO *CO, SUMA_DO_Types ModelType,
+                               SUMA_SO_SIDE ModelSide,
+                               int Max_N_Data,
+                               int *k);
+SUMA_CIFTI_DO *SUMA_CIFTI_find_matching_domain(SUMA_DSET *cdset, 
+                                               SUMA_DO *dov, int N_dov); 
+SUMA_CIFTI_DO *SUMA_find_CIFTI_subdom_container(char *SD_id, int *ksubdom, 
+      	             	      	       SUMA_DO *dov, int N_dov);
+SUMA_ALL_DO *SUMA_CIFTI_subdom_ado(SUMA_CIFTI_DO *CO, int ksub);
+int SUMA_CIFTI_SubDomFullOffset(SUMA_CIFTI_DO *CO, int ksub);
 void SUMA_LoadDsetOntoSO (char *filename, void *data);
 SUMA_Boolean SUMA_LoadDsetOntoSO_eng (char *filename, SUMA_SurfaceObject *SO,
                               int SetupOverlay, int MakeOverlayCurrent, 
@@ -181,7 +200,7 @@ SUMA_Boolean SUMA_Selected_Node_Activate_Callbacks (
 SUMA_DRAWN_ROI * SUMA_is_NamedColPlane_ForROI(char *PlaneName);
 SUMA_Boolean  SUMA_isDsetRelated(SUMA_DSET *dset, SUMA_SurfaceObject *SO);
 NI_group * SUMA_CreateCmapForLabelDset(SUMA_DSET *dset, 
-                                       SUMA_COLOR_MAP *ThisCmap) ;
+                                       SUMA_COLOR_MAP *ThisCmap, int alaa) ;
 SUMA_Boolean SUMA_IsCmapOKForLabelDset(SUMA_DSET *dset, SUMA_COLOR_MAP *cmap);
 int SUMA_dset_to_Label_dset_cmap(SUMA_DSET *dset, SUMA_COLOR_MAP *cmap); 
 

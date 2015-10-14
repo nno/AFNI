@@ -432,6 +432,52 @@ ENTRY("AFNI_clus_dsetlabel") ;
 }
 
 /*---------------------------------------------------------------------------*/
+/* Stuff to set linkRbrain max cluster count from right-click popup
+   menu on the 'linkRbrain' button [09 Sep 2015]
+*//*-------------------------------------------------------------------------*/
+
+void AFNI_clus_linknum_CB( Widget w , XtPointer cd , MCW_choose_cbs *cbs )
+{
+   Three_D_View *im3d = (Three_D_View *)cd ;
+   AFNI_clu_widgets *cwid ;
+   if( !IM3D_OPEN(im3d) || cbs == NULL ) return ;
+   cwid = im3d->vwid->func->cwid ; if( cwid == NULL ) return ;
+   cwid->linkrbrain_nclu = cbs->ival ; return ;
+}
+
+/*---------------------------------------------------------------------------*/
+/* Right-click handler for linkRbrain button - asks for number [09 Sep 2015] */
+
+void AFNI_clus_linknum_EV( Widget w , XtPointer client_data ,
+                           XEvent *ev , Boolean *continue_to_dispatch )
+{
+   Three_D_View *im3d = (Three_D_View *)client_data ;
+   AFNI_clu_widgets *cwid ;
+
+ENTRY("AFNI_clus_linknum_EV") ;
+
+   if( !IM3D_OPEN(im3d) ) EXRETURN ;
+   cwid = im3d->vwid->func->cwid ; if( cwid == NULL ) EXRETURN ;
+
+   switch( ev->type ){
+      case ButtonPress:{
+         XButtonEvent *event = (XButtonEvent *)ev ;
+         if( event->button == Button3 ){
+            MCW_choose_integer( w , "Max linkRbrain clusters" ,
+                                0 , 99 , cwid->linkrbrain_nclu ,
+                                AFNI_clus_linknum_CB , client_data ) ;
+         } else if( event->button == Button2 ){
+            XBell(XtDisplay(w),100) ;
+            MCW_popup_message( w, " \n U R Bad! \n ", MCW_USER_KILL|MCW_TIMER_KILL );
+         }
+      }
+      break ;
+   }
+
+   EXRETURN ;
+}
+
+/*---------------------------------------------------------------------------*/
 /* Make the cluster report widgets initially */
 
 static void AFNI_clus_make_widgets( Three_D_View *im3d, int num )
@@ -567,6 +613,14 @@ ENTRY("AFNI_clus_make_widgets") ;
      MCW_set_bbox( cwid->spearman_bbox , sval ) ;
    }
 
+   { char *blab = "Detrend??" ; int sval ;
+     cwid->detrend_bbox = new_MCW_bbox( cwid->top_menu , 1,&blab ,
+                                        MCW_BB_check , MCW_BB_noframe , NULL,NULL ) ;
+     MCW_reghint_children( cwid->detrend_bbox->wrowcol , "Detrend before Mean plot?") ;
+     sval = AFNI_yesenv("AFNI_CLUSTER_DETREND") ;
+     MCW_set_bbox( cwid->detrend_bbox , sval ) ;
+   }
+
    /*---- end of popup menu ----*/
 
 #undef  VLINE
@@ -612,7 +666,7 @@ ENTRY("AFNI_clus_make_widgets") ;
    wherprog = THD_find_executable("whereami") ;
    if( show_linkrbrain_link() && wherprog != NULL ){
      int  showlinkr;
-     xstr = XmStringCreateLtoR( "LinkrBrain" , XmFONTLIST_DEFAULT_TAG ) ;
+     xstr = XmStringCreateLtoR( "linkRbrain" , XmFONTLIST_DEFAULT_TAG ) ;
      cwid->linkrbrain_pb = XtVaCreateManagedWidget(
              "menu" , xmPushButtonWidgetClass , rc ,
               XmNlabelString , xstr ,
@@ -621,32 +675,42 @@ ENTRY("AFNI_clus_make_widgets") ;
      XmStringFree(xstr) ;
      XtAddCallback( cwid->linkrbrain_pb, XmNactivateCallback, AFNI_clus_action_CB, im3d );
      MCW_register_hint( cwid->linkrbrain_pb ,
-                         "Write cluster table, then 'whereami -linkrbrain'") ;
+                         "Write cluster table, then run 'whereami -linkrbrain'") ;
      MCW_register_help( cwid->linkrbrain_pb ,
                          "Query linkrbrain.org website for\n"
-                         "correlations of cluster coordinates\n"
-                         "with known tasks or genes"
+                         "correlations of the set of cluster\n"
+                         "coordinates with known tasks or genes.\n"
+                         " * Right click to choose how many *\n"
+                         " * coordinate xyz triples to send *"
                       ) ;
      showlinkr = ((im3d->vinfo->view_type == VIEW_TALAIRACH_TYPE) && show_linkrbrain_link());
      SENSITIZE(cwid->linkrbrain_pb, (showlinkr) ) ;
 
-       { static char *clab[2] = { "Tasks" , "Genes" } ;
-         cwid->linkrbrain_av = new_MCW_optmenu( rc , "type" , 0,1,0,0 ,
-                            AFNI_linkrbrain_av_CB,im3d , MCW_av_substring_CB,clab ) ;
-         MCW_reghint_children( cwid->linkrbrain_av->wrowcol ,
-                                "Correlate coordinates with tasks or genes" ) ;
-         MCW_reghelp_children( cwid->linkrbrain_av->wrowcol ,
-                                "Choose whether to show the correlation or\n"
-                                "of cluster coordinates with either tasks or\n"
-                                "genes from the linkrbrain.org database.\n"
-                             ) ;
-         AV_SENSITIZE(cwid->linkrbrain_av, (showlinkr));
-       }
+     XtInsertEventHandler( cwid->linkrbrain_pb,  /* 09 Sep 2015: popup menu */
+                           ButtonPressMask ,     /* button presses */
+                           FALSE ,               /* nonmaskable events? */
+                           AFNI_clus_linknum_EV, /* handler */
+                           (XtPointer)im3d ,     /* client data */
+                           XtListTail            /* last in queue */
+                          ) ;
+
+     { static char *clab[2] = { "Tasks" , "Genes" } ;
+       cwid->linkrbrain_av = new_MCW_optmenu( rc , "type" , 0,1,0,0 ,
+                          AFNI_linkrbrain_av_CB,im3d , MCW_av_substring_CB,clab ) ;
+       MCW_reghint_children( cwid->linkrbrain_av->wrowcol ,
+                              "Correlate coordinates with tasks or genes" ) ;
+       MCW_reghelp_children( cwid->linkrbrain_av->wrowcol ,
+                              "Choose whether to show the correlation or\n"
+                              "of cluster coordinates with either tasks or\n"
+                              "genes from the linkrbrain.org database.\n"
+                           ) ;
+       AV_SENSITIZE(cwid->linkrbrain_av, (showlinkr));
+     }
    } else {
 /* WARNING_message("No whereami program in Unix path ==> no linkrbrain button in Clusterize!") ;*/
      cwid->linkrbrain_pb = cwid->savemask_pb ;
    }
-
+   cwid->linkrbrain_nclu = 0 ; /* 09 Sep 2015 */
 
    XtManageChild(rc) ;  /* finished with row #0 setup */
 
@@ -1108,6 +1172,8 @@ ENTRY("AFNI_clus_make_widgets") ;
    WAIT_for_window( cwid->wtop ) ;
    NORMAL_cursorize( cwid->rowcol ) ;
    POPUP_cursorize( cwid->top_lab ) ;
+   if( show_linkrbrain_link() && wherprog != NULL )  /* 09 Sep 2015 */
+     POPUP_cursorize( cwid->linkrbrain_pb ) ;
 
    EXRETURN ;
 }
@@ -1529,8 +1595,12 @@ ENTRY("AFNI_clus_action_CB") ;
      int vv = im3d->vinfo->view_type ;
      THD_3dim_dataset *dset ;
 
-     if( cdds.dset != NULL ) free((void *)cdds.dset) ;
+     if( cdds.dset != NULL ){
+       STATUS("free(cdds.dset)") ; free((void *)cdds.dset) ;
+       if( getenv("AFNI_CLUSTERIZE_AUXCRASH") == NULL ) cdds.dset = NULL ;
+     }
      cdds.ndset = 0 ;
+     STATUS("realloc(cdds.dset)") ;
      cdds.dset = (THD_3dim_dataset **)realloc(cdds.dset,
                                               sizeof(THD_3dim_dataset *)
                                              *im3d->ss_now->num_dsset  ) ;
@@ -1928,6 +1998,19 @@ ENTRY("AFNI_clus_action_CB") ;
          DESTROY_IMARR(imar) ; SHOW_AFNI_READY; EXRETURN ;
        }
 
+       /* Detrend all (sub)vectors in the data before combining them [14 May 2015] */
+
+       if( MCW_val_bbox(cwid->detrend_bbox) == 1 && (domean || dopc || domedn) ){
+         int qq ; float *far ;
+         for( qq=0 ; qq < IMARR_COUNT(imar) ; qq++ ){
+           far = MRI_FLOAT_PTR( IMARR_SUBIMAGE(imar,qq) ) + ibot ;
+           if( domedn )
+             THD_generic_detrend_L1 ( itop-ibot+1 , far , 1 , 0,NULL,NULL ) ;
+           else
+             THD_generic_detrend_LSQ( itop-ibot+1 , far , 1 , 0,NULL,NULL ) ;
+         }
+       }
+
        /*--- extract single vector for display or save ---*/
 
        if( IMARR_COUNT(imar) == 1 ){   /* should not transpire */
@@ -2135,48 +2218,55 @@ ENTRY("AFNI_clus_action_CB") ;
 
      /* linkrbrain.org website link ****************************************/
      if(w == cwid->linkrbrain_pb) {  /* 11 Feb 2014 */
-     char *lb_fnam;
-     MCW_cluster_array *clar = im3d->vwid->func->clu_list ;
-     int do_linkrbrain = (w == cwid->linkrbrain_pb && wherprog != NULL) ;
+      char *lb_fnam;
+      MCW_cluster_array *clar = im3d->vwid->func->clu_list ;
+      int do_linkrbrain = (w == cwid->linkrbrain_pb && wherprog != NULL) ;
 
-     int jtop , etop, coord_colx, coord_coly, coord_colz;
-     char *wout , ct[64] ; FILE *fp ; int inv ;
+      int jtop , etop, coord_colx, coord_coly, coord_colz;
+      char *wout , ct[64] , csuf[128] ; FILE *fp ; int inv ;
 
-     nclu = im3d->vwid->func->clu_num ;
-     cld  = im3d->vwid->func->clu_det ;
+      nclu = im3d->vwid->func->clu_num ;
+      cld  = im3d->vwid->func->clu_det ;
 
-     if( nclu == 0 || cld == NULL || do_linkrbrain == 0) EXRETURN ;
+      if( nclu == 0 || cld == NULL || do_linkrbrain == 0) EXRETURN ;
 
-     /* write out the coordinates to file first as in SaveTabl function*/
-     lb_fnam = AFNI_cluster_write_coord_table(im3d);
-     if(lb_fnam == NULL) EXRETURN;  /* couldn't create coordinate table */
+      /* write out the coordinates to file first as in SaveTabl function*/
+      lb_fnam = AFNI_cluster_write_coord_table(im3d);
+      if(lb_fnam == NULL) EXRETURN;  /* couldn't create coordinate table */
 #undef  WSIZ
 #define WSIZ 4096
 printf("wrote cluster table to %s\n", lb_fnam);
        SHOW_AFNI_PAUSE ;
        MCW_invert_widget(cwid->linkrbrain_pb) ; inv = 1 ;
        wout = (char *)malloc(sizeof(char)*WSIZ) ;
-       if(cwid->coord_mode == 1){  /* cmass columns */
-           coord_colx = 4; coord_coly = 5; coord_colz = 6;
+       if(cwid->coord_mode == 1){  /* cmass columns */     /*-----------------*/
+           coord_colx = 1; coord_coly = 2; coord_colz = 3; /* RWC: these were */
+       }                                                   /* reversed! Fixed */
+       else{   /* peak columns */                          /* on 09 Sep 2015. */
+           coord_colx = 4; coord_coly = 5; coord_colz = 6; /*-----------------*/
        }
-       else{   /* peak columns */
-           coord_colx = 1; coord_coly = 2; coord_colz = 3;
-       }
-
-       if(cwid->linkrbrain_av->ival == 0)   /* task correlation = default */
-          sprintf(wout,"%s -linkrbrain -coord_file %s'[%d,%d,%d]' -space %s",
-             wherprog,lb_fnam, coord_colx, coord_coly, coord_colz,
-             THD_get_space(im3d->fim_now)) ;
-       else   /* gene correlation */
-          sprintf(wout,"%s -linkrbrain -linkr_type genes -coord_file %s'[%d,%d,%d]' -space %s",
-             wherprog,lb_fnam, coord_colx, coord_coly, coord_colz,
-             THD_get_space(im3d->fim_now)) ;
 
        jtop = clar->num_clu ;
        etop = (int)AFNI_numenv("AFNI_CLUSTER_WAMIMAX") ;
-       if( etop <  1 ) etop = 20 ;
-       else if( etop > 99 ) etop = 99 ;
-       if( jtop > etop ) jtop = etop ;
+            if( etop <  1   ) etop = 20 ;
+       else if( etop > 99   ) etop = 99 ;
+            if( jtop > etop ) jtop = etop ;
+       if( cwid->linkrbrain_nclu > 0 && jtop > cwid->linkrbrain_nclu )
+         jtop = cwid->linkrbrain_nclu ;                        /* 09 Sep 2015 */
+
+       if( jtop > 0 && jtop < clar->num_clu )                  /* 09 Sep 2015 */
+         sprintf(csuf,"[%d,%d,%d]{0..%d}",coord_colx, coord_coly, coord_colz,jtop-1) ;
+       else
+         sprintf(csuf,"[%d,%d,%d]"       ,coord_colx, coord_coly, coord_colz) ;
+
+       if(cwid->linkrbrain_av->ival == 0)   /* task correlation = default */
+          sprintf(wout,"%s -linkrbrain -coord_file %s'%s' -space %s",
+             wherprog,lb_fnam, csuf ,
+             THD_get_space(im3d->fim_now)) ;
+       else   /* gene correlation */
+          sprintf(wout,"%s -linkrbrain -linkr_type genes -coord_file %s'%s' -space %s",
+             wherprog,lb_fnam, csuf ,
+             THD_get_space(im3d->fim_now)) ;
 
        if( jtop >= clar->num_clu ) strcpy (ct," ") ;
        else                        sprintf(ct," [first %d clusters]",jtop) ;
@@ -2200,7 +2290,7 @@ printf("wrote cluster table to %s\n", lb_fnam);
        free(wout) ;
        if( inv ) MCW_invert_widget(cwid->linkrbrain_pb) ;
        SHOW_AFNI_READY ;
-     } /* end of linkrbrain */
+      } /* end of linkrbrain */
 
      EXRETURN ;
    }
@@ -2610,16 +2700,25 @@ ENTRY("format_cluster_table") ;
 void CLU_setup_alpha_tables( Three_D_View *im3d )
 {
    THD_3dim_dataset *dset ;
-   NI_element *nel ;
+   NI_element *nel = NULL ;
+   char *mask_idc  = NULL ;
    CLU_threshtable *ctab ;
    ATR_string *atr ;
    char *msg=NULL ; int ntab=0,nmask=0 ; static int ntabold=-1 ;
+
+#define GET_MASK_IDC                                          \
+ do{ if( mask_idc == NULL && nel != NULL ){                   \
+      char *idc = NI_get_attribute(nel,"mask_dset_idcode") ;  \
+      if( idc != NULL ) mask_idc = strdup(idc) ;              \
+ } } while(0)
 
 ENTRY("CLU_setup_alpha_tables") ;
 
    if( !IM3D_VALID(im3d) ) EXRETURN ;
 
    /* free anything we have now */
+
+   STATUS("free-ing old tables") ;
 
    CLU_free_table( im3d->vwid->func->clu_tabNN1_1sid ) ; im3d->vwid->func->clu_tabNN1_1sid = NULL ;
    CLU_free_table( im3d->vwid->func->clu_tabNN2_1sid ) ; im3d->vwid->func->clu_tabNN2_1sid = NULL ;
@@ -2634,6 +2733,7 @@ ENTRY("CLU_setup_alpha_tables") ;
    CLU_free_table( im3d->vwid->func->clu_tabNN3_bsid ) ; im3d->vwid->func->clu_tabNN3_bsid = NULL ;
 
    if( im3d->vwid->func->clu_mask != NULL ){
+     STATUS("free-ing old mask") ;
      free(im3d->vwid->func->clu_mask) ; im3d->vwid->func->clu_mask = NULL ;
    }
 
@@ -2643,30 +2743,44 @@ ENTRY("CLU_setup_alpha_tables") ;
 
    /* NN1 cluster C(p,alpha) tables */
 
+   STATUS("look for _NN1_1sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_1sided" ) ;
-   if( atr == NULL )
+   if( atr == NULL ){
+     STATUS("  instead look for _NN1") ;
      atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1" ) ;  /* ye olde way */
+   }
    if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN1_1sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 ;
    }
 
+   STATUS("look for _NN1_2sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_2sided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN1_2sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 1 ;
    }
 
+   STATUS("look for _NN1_bisided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN1_bisided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN1 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN1_bsid = ctab ;
      msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 2 ;
@@ -2674,30 +2788,44 @@ ENTRY("CLU_setup_alpha_tables") ;
 
    /* NN2 cluster C(p,alpha) tables */
 
+   STATUS("look for _NN2_1sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_1sided" ) ;
-   if( atr == NULL )
+   if( atr == NULL ){
+     STATUS("  instead look for _NN2") ;
      atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2" ) ;  /* ye olde way */
+   }
    if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN2_1sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 << 3 ;
    }
 
+   STATUS("look for _NN2_2sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_2sided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN2_2sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 4 ;
    }
 
+   STATUS("look for _NN2_bisided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN2_bisided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN2 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN2_bsid = ctab ;
      msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 5 ;
@@ -2705,30 +2833,44 @@ ENTRY("CLU_setup_alpha_tables") ;
 
    /* NN3 cluster C(p,alpha) tables */
 
+   STATUS("look for _NN3_1sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_1sided" ) ;
-   if( atr == NULL )
+   if( atr == NULL ){
+     STATUS("  instead look for _NN3") ;
      atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3" ) ;  /* ye olde way */
+   }
    if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN3_1sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:1sid") ; ntab += 1 << 6 ;
    }
 
+   STATUS("look for _NN3_2sided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_2sided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN3_2sid = ctab ;
      msg = THD_zzprintf(msg," NN=1:2sid") ; ntab += 1 << 7 ;
    }
 
+   STATUS("look for _NN3_bisided") ;
    atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_NN3_bisided" ) ;
    if( atr != NULL ){
+     STATUS("  read NIML element from NN3 attribute") ;
      nel = NI_read_element_fromstring(atr->ch) ;  /* attribute string => NIML */
+     STATUS("  format cluster table from element") ;
      ctab = format_cluster_table(nel) ;           /* NIML => C(p,alpha) table */
+     GET_MASK_IDC ;
      NI_free_element(nel) ;         /* get rid of the C(p,alpha) NIML element */
      im3d->vwid->func->clu_tabNN3_bsid = ctab ;
      msg = THD_zzprintf(msg," NN=1:bsid") ; ntab += 1 << 8 ;
@@ -2737,16 +2879,22 @@ ENTRY("CLU_setup_alpha_tables") ;
    /* search for ASCII mask string, if needed */
 
    if( ntab ){
+     STATUS("look for _MASK") ;
      atr = THD_find_string_atr( dset->dblk , "AFNI_CLUSTSIM_MASK" ) ;
      if( atr != NULL ){
-       int nvox = mask_b64string_nvox(atr->ch) ;  /* length of mask */
+       int nvox ;
+       STATUS("  count mask from string attribute") ;
+       nvox = mask_b64string_nvox(atr->ch) ;  /* length of mask */
        if( nvox == DSET_NVOX(dset) ){         /* must match dataset */
+         STATUS(" make mask from string attribute") ;
          im3d->vwid->func->clu_mask = mask_from_b64string(atr->ch,&nvox) ;
        }
-     } else {    /* search for original mask dataset via its idcode */
-       char *idc = NI_get_attribute(nel,"mask_dset_idcode") ;
-       THD_3dim_dataset *mset = PLUTO_find_dset_idc(idc) ;
+     } else if( mask_idc != NULL ){ /* search for original mask dataset via its idcode */
+       THD_3dim_dataset *mset ;
+       STATUS("  instead look via mask_dset_idcode") ;
+       mset = PLUTO_find_dset_idc(mask_idc) ;
        if( mset != NULL && DSET_NVOX(mset) == DSET_NVOX(dset) ){
+         STATUS("  instead read mask from external dataset") ;
          im3d->vwid->func->clu_mask = THD_makemask(mset,0,1.0,0.0) ;
          DSET_unload(mset) ;
        }
@@ -2754,6 +2902,8 @@ ENTRY("CLU_setup_alpha_tables") ;
      if( im3d->vwid->func->clu_mask != NULL )
        nmask = THD_countmask( DSET_NVOX(dset) , im3d->vwid->func->clu_mask ) ;
    }
+
+   if( mask_idc != NULL ) free(mask_idc) ;
 
    /* messages */
 

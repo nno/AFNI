@@ -272,10 +272,10 @@ def write_afni_com_history(fname, length=0, wrap=1):
    script = '\n'.join(hist)+'\n'
    write_text_to_file(fname, script, wrap=wrap)
 
-def get_process_depth(pid=-1, prog=None):
+def get_process_depth(pid=-1, prog=None, fast=1):
    """print stack of processes up to init"""
 
-   pstack = get_process_stack(pid=pid)
+   pstack = get_process_stack(pid=pid, fast=fast)
 
    if prog == None: return len(pstack)
 
@@ -283,7 +283,7 @@ def get_process_depth(pid=-1, prog=None):
    return len(pids)
 
 # get/show_process_stack(), get/show_login_shell()   28 Jun 2013 [rickr]
-def get_process_stack(pid=-1, verb=1):
+def get_process_stack(pid=-1, fast=1, verb=1):
    """the stack of processes up to init
 
       return an array of [pid, ppid, user, command] elements
@@ -312,6 +312,11 @@ def get_process_stack(pid=-1, verb=1):
          if pind < 0: return 1, []
          indtree.append(pind)
       return 0, indtree
+
+   if not fast:
+      stack = get_process_stack_slow(pid=pid)
+      stack.reverse()
+      return stack
 
    if verb < 2: cmd = 'ps -eo pid,ppid,user,comm'
    else:        cmd = 'ps -eo pid,ppid,user,args'
@@ -398,7 +403,7 @@ def get_process_stack_slow(pid=-1, verb=1):
 
 def show_process_stack(pid=-1,fast=1,verb=1):
    """print stack of processes up to init"""
-   pstack = get_process_stack(pid=pid,verb=verb)
+   pstack = get_process_stack(pid=pid,fast=fast,verb=verb)
    if len(pstack) == 0:
       print '** empty process stack'
       return
@@ -610,6 +615,14 @@ def list_to_datasets(words, whine=0):
         if whine: print # for separation
         return None
     return dsets
+
+def dset_prefix_endswith(dname, suffix):
+    """return 1 if an afni_name dset based on dname has a prefix
+       that ends with suffix"""
+    aname = BASE.afni_name(dname)
+    rv = aname.prefix.endswith(suffix)
+    del(aname)
+    return rv
 
 def basis_has_known_response(basis, warn=0):
     """given a string, if the prefix is either GAM or BLOCK, then the basis
@@ -2660,6 +2673,7 @@ def search_path_dirs(word, mtype=0, casematch=1):
    rlist = []
    for pdir in plist:
       glist = glob.glob(form % (pdir, wpat))
+      glist.sort()
       if len(glist) > 0: rlist.extend(glist)
 
    # make a new list based on os.path.realpath, to avoid links
@@ -2980,6 +2994,20 @@ def variance(data):
     if val < 0.0 : return 0.0
     return val
 
+def covary(x, y):
+    """return the raw covariance:
+       sum[(xi - mean_x)*(yi - mean_y)] / (N-1)
+    """
+
+    ll = len(x)
+    mx = mean(x)
+    my = mean(y)
+
+    vv = loc_sum([(x[i]-mx)*(y[i]-my) for i in range(ll)])
+
+    if ll > 1: return 1.0 * vv / (ll-1.0)
+    else:      return 0.0
+
 def r(vA, vB, unbiased=0):
     """return Pearson's correlation coefficient
 
@@ -3006,6 +3034,42 @@ def r(vA, vB, unbiased=0):
 
     if unbiased: return r * (1 + (1-r*r)/(2*la))
     return r
+
+def linear_fit(vy, vx=None):
+   """return slope and intercept for linear fit to data
+
+      if vx is not provided (i.e. no scatterplot fit), then return
+      fit to straight line (i.e. apply as vx = 1..N, demeaned)
+
+      slope = N*sum(xy) - (sum(x)*sum(y)]
+              ---------------------------
+              N*sum(x*x) - (sum(x))^2
+
+      inter = 1/N * (sum(y) - slope*sum(x))
+
+      note: we could compute slope = covary(x,y)/covary(x,x)
+   """
+
+   N = len(vy)
+   mn = (N-1.0)/2
+
+   # maybe use demeaned, slope 1 line
+   if vx == None: vx = [i-mn for i in range(N)]
+   else:
+      if len(vx) != N:
+         print '** cannot fit vectors of different lengths'
+         return 0.0, 0.0
+
+   sx   = loc_sum(vx)
+   sy   = loc_sum(vy)
+   ssx  = dotprod(vx, vx)
+   ssxy = dotprod(vy, vx)
+
+   slope = (1.0 * N * ssxy - sx * sy) / (N * ssx - sx*sx )
+   inter = 1.0 * (sy - slope * sx) / N
+
+   return slope, inter
+
 
 def eta2(vA, vB):
     """return eta^2 (eta squared - Cohen, NeuroImage 2008
@@ -3313,6 +3377,42 @@ def random_merge(list1, list2):
 
     return mlist
 
+def show_sum_pswr(nT, nR):
+    cp = 0.0
+    prev = 0
+    for r in range(nR+1):
+       p = prob_start_with_R(nT,nR,r)
+       cp += p
+       # print 'prob at %3d = %g (cum %g)' % (r, p, cp)
+       if prev == 0: prev = p
+       print p, p/prev
+       prev = p
+    print 'cum result is %g' % cp
+
+
+def prob_start_with_R(nA, nB, nS):
+    """return the probability of starting nS (out of nB) class B elements
+       should equal: choose(nB, nS)*nS! * nA *(nB+nA-nS-1)! / (nA+nB)!
+       or: factorial(nB, init=nB-nS+1) * nA / fact(nA+nB, init=nA+nB-nS)
+
+       or: choose(nB,nS)/choose(nA+nB,nS) * nA/(nA+nB-nS)
+       
+    """
+    return 1.0 * nA * factorial(nB,    init=nB-nS+1) \
+                    / factorial(nA+nB, init=nA+nB-nS)
+
+def choose(n,m):
+    """return n choose m = n! / (m! * (n-m)!)"""
+    return factorial(n,init=n-m+1) / factorial(m)
+
+def factorial(n, init=1):
+    prod = 1
+    val = init
+    while val <= n:
+       prod *= val
+       val += 1
+    return prod
+
 def swap2(data):
     """swap data elements in pairs"""
     
@@ -3477,6 +3577,8 @@ afni_util.py: not really intended as a main program
       -listfunc [SUB_OPTS] FUNC LIST ... : execute FUNC(LIST)
 
          With this option, LIST is a list of values to be passed to FUNC().
+         Note that LIST can be simply '-' or 'stdin', in which case the
+         list values are read from stdin.
 
          This is similar to eval, but instead of requiring:
             -eval "FUNC([v1,v2,v3,...])"
@@ -3492,15 +3594,21 @@ afni_util.py: not really intended as a main program
 
          Examples for listfunc:
 
-            afni_util.py -listfunc min_mean_max_stdev 1 2 3 4 5
+            afni_util.py -listfunc        min_mean_max_stdev 1 2 3 4 5
             afni_util.py -listfunc -print min_mean_max_stdev 1 2 3 4 5
-            afni_util.py -listfunc -join min_mean_max_stdev 1 2 3 4 5
-            afni_util.py -listfunc -join -float demean  1 2 3 4 5
-            afni_util.py -listfunc -join shuffle `count -digits 4 1 124`
+            afni_util.py -listfunc -join  min_mean_max_stdev 1 2 3 4 5
 
-         Also, if LIST contins -list2, then 2 lists can be input to do
+            afni_util.py -listfunc -join -float demean 1 2 3 4 5
+
+            afni_util.py -listfunc -join shuffle `count -digits 4 1 124`
+            count -digits 4 1 124 | afni_util.py -listfunc -join shuffle -
+
+            afni_util.py -listfunc -join -float linear_fit 2 3 5 4 8 5 8 9
+
+
+         Also, if LIST contains -list2, then 2 lists can be input to do
          something like:
-            -eval "FUNC([v1,v2,v3], [v4,v5,v6]
+            -eval "FUNC([v1,v2,v3], [v4,v5,v6])"
 
          Examples with -list2:
 
@@ -3509,6 +3617,9 @@ afni_util.py: not really intended as a main program
 
             afni_util.py -listfunc -print -float ttest_paired   \\
                           1 2 3 4 5 -list2 2 4 5 6 8
+
+            afni_util.py -listfunc -join -float linear_fit      \\
+                         `cat y.1D` -list2 `cat x.1D`
 
 """
 
@@ -3542,7 +3653,14 @@ def process_listfunc(argv):
    func = eval(argv[argbase])
 
    # get args, and check for -list2
+   # (allow for - to read all data into array)
    args1 = argv[argbase+1:]
+   if len(args1) == 1:
+      if args1[0] == '-' or args1[0] == 'stdin':
+         fvals = read_text_file()
+         args1 = []
+         for fv in fvals: args1.extend(fv.split())
+
    args2 = []
    if '-list2' in args1:
       l2ind = args1.index('-list2')

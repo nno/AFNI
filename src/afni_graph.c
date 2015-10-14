@@ -998,7 +998,7 @@ if(PRINT_TRACING)
 
    grapher->xx_text_1    =
     grapher->xx_text_2   =
-     grapher->xx_text_2p = grapher->xx_text_3 = 1 ;
+     grapher->xx_text_2p = grapher->xx_text_3 = grapher->xx_text_igf = 1 ;
 
    grapher->ref_ts = NULL ;
    grapher->ort_ts = NULL ;
@@ -1224,7 +1224,7 @@ STATUS("freeing cen_tsim") ;
    mri_free( grapher->ave_tsim ) ;  /* 27 Jan 2004 */
    mri_free( grapher->xax_cen  ) ;  /* 12 Feb 2015 */
    grapher->xax_dset = NULL ;       /* 09 Feb 2015 */
-   DESTROY_FD_BRICK(((FD_brick*)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+   DESTROY_FD_BRICK(grapher->xax_fdbr) ; grapher->xax_fdbr = NULL ;
 
 STATUS("freeing tuser") ;
    GRA_CLEAR_tuser( grapher ) ;  /* 22 Apr 1997 */
@@ -1565,8 +1565,10 @@ ENTRY("GRA_redraw_overlay") ;
       xxx = MAX( grapher->xx_text_2 ,
                  grapher->xorigin[grapher->xc][grapher->yc]-39 ) ;
 
-      if( grapher->init_ignore > 0 || grapher->thresh_fade )
+      if( grapher->init_ignore > 0 || grapher->thresh_fade ){
         xxx = MAX( xxx , grapher->xx_text_2p ) ;
+        xxx = MAX( xxx , grapher->xx_text_igf ) ; /* this allows for Fading + Ignore together */
+      }
 
       DC_fg_color( grapher->dc , IDEAL_COLOR(grapher) ) ;
       overlay_txt( grapher, xxx , GB_DLY-15 , strp ) ;
@@ -1684,10 +1686,10 @@ ENTRY("redraw_graph") ;
    if( grapher->init_ignore > 0 ){                    /* 23 May 2005 */
      sprintf(strp,"Ignore%4d",grapher->init_ignore) ;
      if( grapher->thresh_fade ) sprintf(strp+strlen(strp)," Fading") ;
-     fd_txt( grapher , xxx , 35, strp) ;
+     fd_txt( grapher , xxx , 35, strp) ; grapher->xx_text_igf = 1+xxx+DC_text_width(grapher->dc,strp) ;
    } else if( grapher->thresh_fade ){
      sprintf(strp,"Fading") ;
-     fd_txt( grapher , xxx , 35, strp) ;
+     fd_txt( grapher , xxx , 35, strp) ; grapher->xx_text_igf = 1+xxx+DC_text_width(grapher->dc,strp) ;
    }
 
    sprintf(strp,"Grid:%5d", grapher->grid_spacing ) ;
@@ -3947,7 +3949,7 @@ STATUS(str); }
          MRI_IMAGE * tsim ;
          int xd,yd,zd ;     /* 24 Sep 1999 */
 
-         EXRONE(grapher) ;  /* 22 Sep 2000 */
+         /* EXRONE(grapher) ; */ /* 22 Sep 2000 */
 
          ll   = MAX( grapher->status->nx , grapher->status->ny ) ;
          ll   = MAX( grapher->status->nz , ll ) ;
@@ -4126,7 +4128,7 @@ STATUS("User pressed Done button: starting timeout") ;
    }
 
    if( w == grapher->opt_write_suffix_pb ){
-      EXRONE(grapher) ;  /* 22 Sep 2000 */
+/*      EXRONE(grapher) ; */ /* 22 Sep 2000 */
       GRA_timer_stop(grapher) ;   /* 04 Dec 2003 */
       MCW_choose_string( grapher->option_rowcol ,
                          "'Write Center' Suffix:" , Grapher_Stuff.wcsuffix ,
@@ -4182,7 +4184,7 @@ STATUS("User pressed Done button: starting timeout") ;
      mri_free( grapher->xax_tsim ) ; grapher->xax_tsim = NULL ;
      mri_free( grapher->xax_cen  ) ; grapher->xax_cen  = NULL ; /* 12 Feb 2015 */
      grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
-     DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+     DESTROY_FD_BRICK(grapher->xax_fdbr) ; grapher->xax_fdbr = NULL ;
      GRA_timer_stop(grapher) ;   /* 04 Dec 2003 */
      redraw_graph( grapher , 0 ) ;
      EXRETURN ;
@@ -4251,7 +4253,7 @@ STATUS("User pressed Done button: starting timeout") ;
        mri_free( grapher->xax_tsim ) ;
        grapher->xax_tsim = mri_to_float( grapher->cen_tsim ) ;
        grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
-       DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+       DESTROY_FD_BRICK(grapher->xax_fdbr) ; grapher->xax_fdbr = NULL ;
        mri_free(grapher->xax_cen) ; grapher->xax_cen = NULL ; /* 12 Feb 2015 */
        redraw_graph(grapher,0) ;
      } else {
@@ -4343,7 +4345,7 @@ ENTRY("GRA_pick_xaxis_CB") ;
      mri_free( grapher->xax_tsim ) ;
      grapher->xax_tsim = mri_to_float(tsim) ;  /* a copy */
      grapher->xax_dset = NULL ;  /* 10 Feb 2015 */
-     DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+     DESTROY_FD_BRICK(grapher->xax_fdbr) ; grapher->xax_fdbr = NULL ;
      mri_free(grapher->xax_cen) ; grapher->xax_cen = NULL ; /* 12 Feb 2015 */
    } else {
      mri_free( grapher->xax_tsim ) ; grapher->xax_tsim = NULL ;
@@ -4384,7 +4386,7 @@ ENTRY("GRA_finalize_xaxis_dset_CB") ;
 
    /* make FD_brick corresponding to the one being viewed in this grapher */
 
-   DESTROY_FD_BRICK(((FD_brick *)grapher->xax_fdbr)) ; grapher->xax_fdbr = NULL ;
+   DESTROY_FD_BRICK(grapher->xax_fdbr) ; grapher->xax_fdbr = NULL ;
    if( grapher->xax_dset != NULL ){
      FD_brick *br = (FD_brick *)grapher->getaux ;
      grapher->xax_fdbr = THD_3dim_dataset_to_brick( dset , br->a123.ijk[0] ,

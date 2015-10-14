@@ -402,6 +402,33 @@ int main( int argc , char * argv[] )
      }
    }
 
+   /* check whether processing leaves any DoF remaining  18 Mar 2015 [rickr] */
+   {
+      int nbprem = THD_bandpass_remain_dim(ntime, dt, fbot, ftop, 1);
+      int bpused, nremain;
+      int wlimit;               /* warning limit */
+
+      bpused = ntime - nbprem;  /* #dim lost in bandpass step */
+
+      nremain = nbprem - nort;  /* #dim left in output */
+      if( nortset == 1 ) nremain--;
+      nremain -= (qdet+1);
+
+      if( verb ) INFO_message("%d dimensional data reduced to %d by:\n"
+                    "    %d (bandpass), %d (-ort), %d (-dsort), %d (detrend)",
+                    ntime, nremain, bpused, nort, nortset?1:0, qdet+1);
+
+      /* possibly warn (if 95% lost) user or fail */
+      wlimit = ntime/20;
+      if( wlimit < 3 ) wlimit = 3;
+      if( nremain < wlimit && nremain > 0 )
+         WARNING_message("dimensionality reduced from %d to %d, be careful!",
+                         ntime, nremain);
+      if( nremain <= 0 ) /* FAILURE */
+         ERROR_exit("dimensionality reduced from %d to %d, failing!",
+                    ntime, nremain);
+   }
+
    /* all the real work now */
 
    if( do_despike ){
@@ -459,7 +486,10 @@ int main( int argc , char * argv[] )
 
    if( verb ) INFO_message("Creating output dataset in memory, then writing it") ;
    outset = EDIT_empty_copy(inset) ;
-   EDIT_dset_items( outset , ADN_prefix,prefix , ADN_none ) ;
+   /* do not copy scalars    11 Sep 2015 [rickr] */
+   EDIT_dset_items( outset , ADN_prefix,prefix ,
+                             ADN_brick_fac,NULL ,
+                    ADN_none ) ;
    tross_Copy_History( inset , outset ) ;
    tross_Make_History( "3dBandpass" , argc,argv , outset ) ;
 

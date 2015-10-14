@@ -681,8 +681,8 @@ char * SUMA_NIDO_Info(void)
 "\n");
    }
    SS = SUMA_StringAppend(SS,
-"  Try the script '@DO.examples' for concrete examples on displayable \n"
-"  objects.\n"  
+"  Try the script :ref:`@DO.examples<@DO.examples>` for concrete examples on  \n"
+"  displayable objects.\n"  
 "\n"
 ); 
 
@@ -1278,204 +1278,6 @@ char * SUMA_help_Plot_message_Info(void)
 
 }
 
-/* Format help key string */
-char * SUMA_hkf_eng(char *keyi, TFORM target, char *cm)
-{
-   static char FuncName[]={"SUMA_hkf_eng"};
-   static char ss[20][256];
-   char key1[256], key2[256], *direc="kbd";
-   static int c;
-   char *s;
-   int ichar=-1;
-   
-   if (!cm) cm = "";
-   
-   ++c;
-   if (c > 19) c = 0;
-   s = (char *)ss[c]; s[0] = s[255] = '\0';
-   if (!keyi) return(s);
-   switch (target) {
-      default:
-      case TXT: /* SUMA */
-         /* Actually COMMA, PERIOD, STAR mods are not needed, leave 
-         for posterity.*/
-         if (strstr(keyi,"COMMA")) {
-            snprintf(key1, 255, ",");
-         } else if (strstr(keyi,"PERIOD")) {
-            snprintf(key1, 255, ".");
-         } else if (strstr(keyi,"STAR")) {
-            snprintf(key1, 255, "*");
-         } else {
-            snprintf(key1, 255, "%s", keyi);
-         }
-            snprintf(s, 255, "  %s", key1);
-         return(s);
-         break;
-      case SPX: /* Sphinx */
-         if (strstr(keyi,"->") == keyi) {
-            /* Won't work if you pass key with blanks before '->'
-               But why do such a thing? */ 
-            snprintf(key1, 255, "%s", keyi+2);
-            snprintf(key2, 255, "%s", keyi+2);
-            direc = "menuselection";
-         } else {
-            snprintf(key1, 255, "%s", keyi);
-            snprintf(key2, 255, "%s", keyi);
-            direc = "kbd";
-         }
-         
-         if (key1[1] == '\0') {
-            ichar = 0;
-         } else if (key1[strlen(key1)-2] == '+'){
-            ichar = strlen(key1)-1;
-         } else ichar = -1;
-         
-         if (ichar > -1) { 
-            if (SUMA_IS_UPPER_C(key1[ichar])) {
-               snprintf(s, 255, "\n.. _%sUC_%s:\n\n:%s:`%s`"
-                  , cm, deblank_allname(key1,'_'), direc, deblank_name(key2));
-            } else { 
-               snprintf(s, 255, "\n.. _%sLC_%s:\n\n:%s:`%s`"
-                  , cm, deblank_allname(key1,'_'), direc, deblank_name(key2));
-            }
-         } else {
-            snprintf(s, 255, "\n.. _%s%s:\n\n:%s:`%s`"
-                  , cm, deblank_allname(key1,'_'), direc, deblank_name(key2));
-         }
-         return(s);
-         break;
-   }
-   return(s);
-}
-
-char * SUMA_hkf(char *keyi, TFORM target) {
-   /* for main suma area keys */
-   return(SUMA_hkf_eng(keyi,target,""));
-}
-
-char * SUMA_hkcf(char *keyi, TFORM target) {
-   /* for colormap area keys */
-   return(SUMA_hkf_eng(keyi,target,"CM_"));
-}
-
-
-/* Format GUI section */
-char * SUMA_gsf(char *wname, TFORM target, char **hintout, char **helpout)
-{
-   static char FuncName[]={"SUMA_gsf"};
-   static char ss[20][256], wnameclp[256];
-   char key1[256], key2[256], *direc="kbd", *lnm=NULL;
-   static int c;
-   char *s=NULL, *su=NULL, *shh=NULL, *sii=NULL;
-   int ichar=-1, i;
-   GUI_WIDGET_HELP *gwh=NULL;
-      
-   ++c;
-   if (c > 19) c = 0;
-   s = (char *)ss[c]; s[0] = s[255] = '\0';
-   
-   if ((helpout && *helpout) || (hintout && *hintout)) {
-      SUMA_S_Err("string init error");
-      return(s);
-   }
-
-   
-   if (!wname) return(s);
-   
-   switch (target) {
-      default:
-      case TXT: /* SUMA */
-         snprintf(s, 255, "  %s", wname);
-         return(s);
-         break;
-      case SPX: /* Sphinx */
-         if (!(gwh = SUMA_Get_GUI_Help(wname, target, &shh, &sii,3))) {
-            SUMA_S_Err("No help for %s\n", wname);
-            SUMA_suggest_GUI_Name_Match(wname, 8, NULL);
-            shh = SUMA_copy_string(wname);
-            sii = SUMA_copy_string(wname);
-         }
-         
-         if (!sii) sii = SUMA_copy_string("No Hint");
-         if (helpout) *helpout = shh;
-         if (hintout) *hintout = sii;
-         
-         if (!gwh) { return(s); }
-         
-         su = (char *)SUMA_calloc(strlen(sii)+2, sizeof(char));
-         
-         lnm = gwh->name[gwh->name_lvl-1];
-         snprintf(wnameclp, 255, "%s", lnm);
-         if (strstr(wnameclp,".r00")) { /* get rid of .r00 */
-            wnameclp[strlen(lnm)-4]='\0';
-         }
-         
-         switch (gwh->type) {
-            case 0: /* container only */
-               if (gwh->name_lvl == 1) {
-                  for (i=0; i<strlen(sii); ++i) {su[i] = '-';} su[i] = '\0';
-                  snprintf(s, 255, "\n"
-                                   ".. _%s:\n"
-                                   "\n"
-                                   "%s\n"
-                                   "%s\n",
-                              wname, sii, su);
-               } else if (gwh->name_lvl == 2) {
-                  for (i=0; i<strlen(sii); ++i) {su[i] = '^';} su[i] = '\0';
-                  snprintf(s, 255, "\n"
-                                   ".. _%s:\n"
-                                   "\n"
-                                   "%s\n"
-                                   "%s\n",
-                              wname, sii, su);
-               } else if (gwh->name_lvl == 3) {
-                  for (i=0; i<strlen(sii); ++i) {su[i] = '"';} su[i] = '\0';
-                  snprintf(s, 255, "\n"
-                                   ".. _%s:\n"
-                                   "\n"
-                                   "%s\n"
-                                   "%s\n",
-                              wname, sii, su);
-               } else if (gwh->name_lvl == 4) {
-                  for (i=0; i<strlen(sii); ++i) {su[i] = '.';} su[i] = '\0';
-                  snprintf(s, 255, "\n"
-                                   ".. _%s:\n"
-                                   "\n"
-                                   "%s\n"
-                                   "%s\n",
-                              wname, sii, su);
-               } else {
-                  snprintf(s, 255, "\n"
-                                   "   .. _%s:\n"
-                                   "\n"
-                                   "**%s**: %s\n"
-                                   "\n",
-                              wname, wnameclp,sii);
-               }
-               break;
-            case 1: /* actual widget */
-               snprintf(s, 255, "\n"
-                                "   .. _%s:\n"
-                                "\n"
-                                "**%s**: %s\n"
-                                "\n",
-                              wname, wnameclp,sii);
-               break;
-            default:
-               SUMA_S_Err("Bad type %d", gwh->type);
-               break;
-         }
-         
-         if (!hintout) SUMA_ifree(sii); 
-         if (!helpout) SUMA_ifree(shh); 
-         SUMA_ifree(su);
-         
-         return(s);
-         break;
-   }
-   
-   return(s);
-}
 
 char * SUMA_help_message_Info(TFORM targ)
 {
@@ -1507,7 +1309,7 @@ char * SUMA_help_message_Info(TFORM targ)
       "*On MACs*, Alt is the Apple/Command key.\n"
       "   If it is commandeered by the OS, and you can't get it back, then\n"
       "   try the alt/option key instead.\n\n"
-      "*On Linux*, Turn NumLock OFF, otherwise certainly mouse or \n"
+      "*On Linux*, Turn NumLock OFF, otherwise certain mouse or \n"
       "   keyboard combinations do not work as intended.\n\n");
    SS = SUMA_StringAppend_va (SS, 
       "   %s: attenuation by background, toggle. "
@@ -1610,19 +1412,22 @@ char * SUMA_help_message_Info(TFORM targ)
       "   %s: Light's XYZ coordinates.\n"
       "        Default setting is 0.0 0.0 %.1f \n", SUMA_hkf("L", targ), 
       1.0 * SUMA_INTITIAL_LIGHT0_SWITCH);
-   if (SUMAg_CF->Dev) SS = SUMA_StringAppend_va (SS, 
-      "   %s: Dim all lights and colors by a factor of 0.8\n", 
+   SS = SUMA_StringAppend_va (SS, 
+      "   %s: Brighten specular and diffuse lights by a factor of 1/0.8\n", 
             SUMA_hkf("Ctrl+L", targ) );
    SS = SUMA_StringAppend_va (SS, 
       "   %s: look at point\n", SUMA_hkf("l", targ));
    SS = SUMA_StringAppend_va (SS, 
       "   %s: look at cross hair\n", SUMA_hkf("Alt+l", targ));
-   SS = SUMA_StringAppend_va (SS, 
+   /* SS = SUMA_StringAppend_va (SS, 
       "   %s: Switch locking mode for all viewers \n"
       "             between: No Lock, Index Lock and \n"
       "             XYZ Lock. The switching is order is \n"
       "             based on the lock of the first viewer.\n\n", 
-      SUMA_hkf("Ctrl+l", targ));
+      SUMA_hkf("Ctrl+l", targ)); */
+   SS = SUMA_StringAppend_va (SS, 
+      "   %s: Dim specular and diffuse lights by a factor of 0.8\n", 
+            SUMA_hkf("Ctrl+l", targ) );
    SS = SUMA_StringAppend_va (SS, 
       "   %s: Dumps memory trace to file \n"
       "                 called malldump.NNN where NNN\n"
@@ -1640,18 +1445,26 @@ char * SUMA_help_message_Info(TFORM targ)
       "       0 (opaque), 25%%, 50%%, 75%%, 100%% (invisible)\n"
       "\n", SUMA_hkf("O", targ));
    SS = SUMA_StringAppend_va (SS, 
+      "   %s: Increase opacity of selected object by 4 levels.\n"
+      "\n", SUMA_hkf("Ctrl+O", targ));
+   SS = SUMA_StringAppend_va (SS, 
       "   %s: Decrease opacity of all surfaces in viewer by 4 levels.\n"
       "\n", SUMA_hkf("o", targ));
    SS = SUMA_StringAppend_va (SS, 
-      "   %s: Set new center of rotation.\n"
-      "       Enter nothing to go back to default.\n"
+      "   %s: Decrease opacity of selected object by 4 levels.\n"
       "\n", SUMA_hkf("Ctrl+o", targ));
    SS = SUMA_StringAppend_va (SS, 
-      "  %s: Open a new surface viewer window.\n\n",
+      "   %s: Set new center of rotation.\n"
+      "       Enter nothing to go back to default.\n"
+      "\n", SUMA_hkf("Alt+o", targ));
+   SS = SUMA_StringAppend_va (SS, 
+      "   %s: Open a new surface viewer window.\n\n",
       SUMA_hkf("Ctrl+n", targ));
       
    SS = SUMA_StringAppend_va (SS, 
 "   %s: Viewer rendering mode  \n"
+"        (Fill, Line, Points, Hide), switch.\n\n"
+"   %s: Selected object rendering mode\n"
 "        (Fill, Line, Points, Hide), switch.\n\n"
 "   %s: Cycle between restrictions of where DO node-based \n"
 "         objects are displayed. Available modes are:\n"
@@ -1661,12 +1474,12 @@ char * SUMA_help_message_Info(TFORM targ)
 "           n1Crosshair: Crosshair node only\n"
 "           None: Show nothing.\n\n"
 "              See also -do_draw_mask option in DriveSuma\n\n"
-"        ** DO stands for displayable objects, see 'Ctrl+Alt+s'\n"
-"           below.\n"
-"        ** For the moment, 'Ctrl+p' only applies to segment \n"
+"        ** DO stands for displayable objects, see also\n"
+"           :ref:`Ctrl+Alt+s<LC_Ctrl+Alt+s>` below.\n"
+"        ** For the moment, 'Alt+p' only applies to segment \n"
 "           and sphere DOs  that are node based. \n"
 "           If you need it applied to other DOs, let me know.\n"
-      , SUMA_hkf("p", targ), SUMA_hkf("Ctrl+p", targ));
+      , SUMA_hkf("p", targ), SUMA_hkf("Ctrl+p", targ), SUMA_hkf("Alt+p", targ));
    SS = SUMA_StringAppend_va (SS, 
       "   %s: Reset viewer and all surfaces to Fill  \n"
       "        rendering mode.\n\n", SUMA_hkf("P", targ));
@@ -1729,7 +1542,8 @@ char * SUMA_help_message_Info(TFORM targ)
       "   %s: Open :SPX::ref:`controller <SurfCont>`:DEF:controller:SPX: for \n"
       ":           :surface in Focus.\n", SUMA_hkf("Ctrl+s", targ));
    SS = SUMA_StringAppend_va (SS, 
-"   %s: Input filename containing displayable objects.\n"
+":SPX:\n\n   .. _load_DOs:\n\n:SPX:"
+"   %s: Input filename containing displayable objects (a.k.a. :ref:`DOs<load_DOs>`).\n"
 "                 Files are of 1D format with a necessary comment\n"
 "                 at the top to indicate the type of objects in \n"
 "                 the file.\n"
@@ -1737,9 +1551,10 @@ char * SUMA_help_message_Info(TFORM targ)
 "                 name will replace currently loaded versions.\n"
 "                 Note 2: Node-based (Types 3 and 4) objects\n"
 "                 will follow a node when its coordinates change.\n"
-"                 Note 3: See also 'Ctrl+p' for restricting which \n"
+"                 Note 3: See also 'Alt+p' for restricting which \n"
 "                 node-based objects get displayed.\n\n"
-"          Type 1:Segments between (x0,y0,z0) and (x1,y1,z1) \n"
+":SPX:\n\n   .. _load_segments:\n\n:SPX:"
+"          Type 1: :ref:`Segments<load_segments>` between (x0,y0,z0) and (x1,y1,z1) \n"
 "                 1st line must be '#segments' (without quotes),\n"
 "                 or '#oriented_segments' (slower to render).\n"
 "                 One can also use #node-based_segments or \n"
@@ -1771,7 +1586,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                 11 cols: x0 y0 z0 x1 y1 z1 c0 c1 c2 c3 th\n"
 "                 12 cols: x0 y0 z0 x1 y1 z1 c0 c1 c2 c3 th st\n\n"
 "                          with st defined above.\n\n"
-"          Type 2: Directions, a variant of segments and oriented segments.\n"
+":SPX:\n\n   .. _load_directions:\n\n:SPX:"
+"          Type 2: :ref:`Directions<load_directions>`, a variant of segments and oriented segments.\n"
 "                 1st line must be '#directions' (without quotes).\n"
 "                 Remainder of file is N rows, each defining a \n"
 "                 direction.\n"
@@ -1800,7 +1616,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                          Add colors for each segment, with origin at 0,0,0\n\n"
 "                 11 cols: ox oy oz dx dy dz mag c0 c1 c2 c3\n"
 "                 12 cols: ox oy oz dx dy dz mag th c0 c1 c2 c3\n\n"
-"          Type 3:Spheres centered at (ox, oy, oz) \n"
+":SPX:\n\n   .. _load_spheres:\n\n:SPX:"
+"          Type 3: :ref:`Spheres<load_spheres>` centered at (ox, oy, oz) \n"
 "                 1st line must be '#spheres' (without quotes).\n"
 "                 Remainder of file is N rows, each defining a \n"
 "                 sphere.\n"
@@ -1820,7 +1637,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                          between 0 and 1.0\n\n"
 "                 8  cols: ox oy oz c0 c1 c2 c3 rd\n"
 "                 9  cols: ox oy oz c0 c1 c2 c3 rd st\n\n"
-"          Type 4:Points at (ox, oy, oz) \n"
+":SPX:\n\n   .. _load_points:\n\n:SPX:"
+"          Type 4: :ref:`Points<load_points>` at (ox, oy, oz) \n"
 "                 1st line must be '#points' (without quotes).\n"
 "                 Remainder of file is N rows, each defining a \n"
 "                 point.\n"
@@ -1833,7 +1651,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                          with c0..3 being the RGBA values\n"
 "                          between 0 and 1.0\n\n"
 "                 8  cols: ox oy oz c0 c1 c2 c3 sz\n"
-"          Type 5:Vectors (vx, vy, vz) at surface nodes \n"
+":SPX:\n\n   .. _load_node-based_vectors:\n\n:SPX:"
+"          Type 5: :ref:`Vectors<load_node-based_vectors>` (vx, vy, vz) at surface nodes \n"
 "                 1st line must be '#node-based_vectors' (without quotes)\n"
 "                 or '#node-based_ball-vectors' (slower to render).\n"
 "                 Remainder of file is N rows, each defining a \n"
@@ -1854,7 +1673,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                          with with c0..3 being the RGBA values\n"
 "                          between 0 and 1.0\n\n"
 "                 9  cols: n, vx, vy, vz, c0 c1 c2 c3 gn\n\n"   
-"          Type 6:Spheres centered at nodes n of the current surface\n"
+":SPX:\n\n   .. _load_node-based_spheres:\n\n:SPX:"
+"          Type 6: :ref:`Spheres<load_node-based_spheres>` centered at nodes n of the current surface\n"
 "                 1st line must be '#node-based_spheres' (without quotes).\n"
 "                 Remainder of file is N rows, each defining a \n"
 "                 sphere.\n"
@@ -1866,7 +1686,8 @@ char * SUMA_help_message_Info(TFORM targ)
 "                 5  cols: n c0 c1 c2 c3 \n"
 "                 6  cols: n c0 c1 c2 c3 rd\n"
 "                 7  cols: n c0 c1 c2 c3 rd st\n\n"
-"          Type 7:Planes defined with: ax + by + cz + d = 0.\n"
+":SPX:\n\n   .. _load_planes:\n\n:SPX:"
+"          Type 7: :ref:`Planes<load_planes>` defined with: ax + by + cz + d = 0.\n"
 "                 1st line must be '#planes' (without quotes).\n"
 "                 Remainder of file is N rows, each defining a \n"
 "                 plane.\n"
@@ -1881,9 +1702,10 @@ char * SUMA_help_message_Info(TFORM targ)
 "                 There are no node-based planes at the moment.\n"
 "                 They are a little inefficient to reproduce with\n"
 "                 each redraw. Complain if you need them.\n\n"
-"         Type 8: Another class of displayble objects is described in\n"
-"                 the output of suma -help_nido and the demonstration\n"
-"                 script @DO.examples. This new class allows for displaying \n"
+":SPX:\n\n   .. _load_nido:\n\n:SPX:"
+"         Type 8: :ref:`Another<load_nido>` class of displayble objects is described in\n"
+"                 the output of :ref:`suma -help_nido<suma--help_nido>` and the demonstration\n"
+"                 script :ref:`@DO.examples<@DO.examples>`. This new class allows for displaying \n"
 "                 text and figures in both screen and world space.\n"
       , SUMA_hkf("Ctrl+Alt+s", targ));
    SS = SUMA_StringAppend_va (SS, 
@@ -2060,7 +1882,7 @@ char * SUMA_help_message_Info(TFORM targ)
       "*On MACs*, Alt is the Apple/Command key.\n"
       "   If it is commandeered by the OS, and you can't get it back, then\n"
       "   try the alt/option key instead.\n\n"
-      "*On Linux*, Turn NumLock OFF, otherwise certainly mouse or \n"
+      "*On Linux*, Turn NumLock OFF, otherwise certain mouse or \n"
       "   keyboard combinations do not work as intended.\n\n");
       
    SS = SUMA_StringAppend_va (SS, 
@@ -2264,13 +2086,18 @@ char * SUMA_help_message_Info(TFORM targ)
 ":SPX:"
 ".. figure:: media/surface_selection.jpg\n"
 "    :figwidth: 30%\n"
-"    :align: center\n\n"
+"    :align: center\n"
+"    :name: media/surface_selection.jpg\n"
+"\n"
+"    :ref:`(link)<media/surface_selection.jpg>`\n\n"
 ":SPX:"
 "2- Voxel picking in volumes: You can select voxels on rendered slices as "
 "long as the voxels are not thresholded out of view. They maybe too dark to "
 "see but still be selectable if their value exceeds that of the threshold.\n\n"
 "Selecting a voxel also highlights the slice. You can turn off the highlight "
 "rectangle with :ref:`F5 <F5>`.\n\n"
+"Note that you can also select from the 3D rendered volume and when 3D rendering"
+" is turned on. In that case, no slice highlighting is done.\n\n" 
 "3- Edge/cell selection in graphs: Right click on an edge, matrix cell, "
 "or bundle reprenting the edge and the connection is rendered white. Because "
 "the graphs can be bidirectional, clicking on an edge between [n1, n2] with the "
@@ -2897,317 +2724,6 @@ char * SUMA_Help_AllSurfCont_old ()
    SUMA_RETURN(s);
 }
 
-static DList *All_GUI_Help = NULL;
-
-void SUMA_Free_Widget_Help(void *data)
-{
-   static char FuncName[]={"SUMA_Free_Widget_Help"};
-   GUI_WIDGET_HELP *gwh = (GUI_WIDGET_HELP *)data;
-   
-   SUMA_ENTRY;
-   if (data) SUMA_free(data);
-   SUMA_RETURNe;
-}
-
-int SUMA_Register_GUI_Help(char *which, char *hint, char *help, int type)
-{
-   static char FuncName[]={"SUMA_Register_GUI_Help"};
-   GUI_WIDGET_HELP *gwh=NULL, *gwhc=NULL;
-   char *sstmp = NULL, *s=NULL, buf[64]={""};
-   DListElmt *el=NULL;
-   static char WhinedNames[1025]={""};
-   int nn;
-   SUMA_Boolean LocalHead = NOPE;
-   
-   SUMA_ENTRY;
-   
-   if (!hint && !which) {
-      SUMA_S_Err("No hint, no which");
-      SUMA_RETURN(NOPE);
-   }
-   
-   if (!which) { /* get from hint if it has "which" string between
-                   ":which:" directives.
-                   ":which:SurfCont->more:which:hint goes here"*/
-      if ( !(strstr(hint,":which:") == hint) || 
-           !(sstmp = strstr(hint+strlen(":which:"),":which:"))  ) {
-         SUMA_S_Err("No which and no :which: in hint. No good");
-         SUMA_RETURN(NOPE);        
-      }
-      which = hint+strlen(":which:");
-      hint = sstmp+strlen(":which:");
-   }
-   
-   gwh = (GUI_WIDGET_HELP *)SUMA_calloc(1,sizeof(GUI_WIDGET_HELP));
-   
-   gwh->type = type;
-   
-   /* parse which: SurfCont->more */
-   sstmp = which;
-   gwh->name_lvl = 0;
-   while( (s = strstr(sstmp, "->")) && gwh->name_lvl < 9 ) {
-      if (s == sstmp) {
-         SUMA_S_Err("Empty child in %s\n", which);
-         SUMA_free(gwh);
-         SUMA_RETURN(NOPE);
-      }
-      nn = s - sstmp;
-      if (nn > 63) {
-         SUMA_S_Err("Too wordy for me.");
-         SUMA_free(gwh);
-         SUMA_RETURN(NOPE);
-      }
-      strncpy(gwh->name[gwh->name_lvl], sstmp, nn);
-                     gwh->name[gwh->name_lvl][nn+1] = '\0';
-      sstmp = s+2; /* skip -> */
-      ++gwh->name_lvl;
-   }
-   /* copy last one */
-   strncpy(gwh->name[gwh->name_lvl], sstmp, 63); 
-                     gwh->name[gwh->name_lvl][64] = '\0'; 
-   ++gwh->name_lvl;
-   
-   /* store the hint */
-   if (hint) {
-      if (strlen(hint)>255) {
-         SUMA_S_Err("Hint too long");
-         SUMA_free(gwh);
-         SUMA_RETURN(NOPE);
-      }
-      strncpy(gwh->hint, hint, 255); gwh->hint[255] = '\0';
-   } 
-   
-   /* store the help */   
-   gwh->help = help;
-   
-   /* Put it all in */
-   if (!All_GUI_Help) {
-      All_GUI_Help = (DList *)SUMA_calloc(1, sizeof(DList));
-      dlist_init(All_GUI_Help, SUMA_Free_Widget_Help);
-   }
-   
-   /* insert in list */
-   if (!dlist_size(All_GUI_Help)) {
-      dlist_ins_next(All_GUI_Help, dlist_head(All_GUI_Help), (void *)gwh);
-      SUMA_RETURN(YUP);
-   }
-   
-   SUMA_LH("Inserting '%s' with  %s %s", 
-               SUMA_Name_GUI_Help(gwh), gwh->hint, gwh->help);
-   /* Insert in alphabetical order */
-   el = dlist_head(All_GUI_Help);
-   do {
-      gwhc = (GUI_WIDGET_HELP *)el->data;
-      if ((nn = strcmp(SUMA_Name_GUI_Help(gwhc), 
-                       SUMA_Name_GUI_Help(gwh))) == 0) {
-         snprintf(buf, 63, "%s;",SUMA_Name_GUI_Help(gwh));
-         if (LocalHead || !(sstmp=strstr(WhinedNames, buf))) {
-            SUMA_S_Note("GUI Name %s already in use. No special help entry."
-                        "%s",
-                        SUMA_Name_GUI_Help(gwh), 
-                  LocalHead ? "":"\nFurther warnings for this name curtailed.");
-            if (!sstmp) strncat(WhinedNames,buf, 1023);
-            SUMA_DUMP_TRACE("Trace at duplicate GUI name");
-            SUMA_free(gwh);
-         }
-         SUMA_RETURN(YUP);
-      } else if (nn < 0) {
-         dlist_ins_next(All_GUI_Help, el, (void *)gwh);
-         SUMA_RETURN(YUP);
-      } else {
-         el = dlist_next(el);
-      }
-   } while (el && el != dlist_tail(All_GUI_Help));
-   
-   /* Reached bottom without going over, put on the top */
-   dlist_ins_prev(All_GUI_Help, dlist_head(All_GUI_Help), (void *)gwh);
-   
-   /* A debug for when you get to the bottom condition */
-   if (LocalHead) {
-      SUMA_Show_All_GUI_Help(All_GUI_Help, NULL, 0, 0);
-   }
-   
-   SUMA_RETURN(YUP);
-}
-
-char *SUMA_Name_GUI_Help(GUI_WIDGET_HELP *gwh)
-{
-   static char FuncName[]={"SUMA_Name_GUI_Help"};
-   static char sa[10][641], *s=NULL;
-   static int nc=0;
-   int k;
-   
-   SUMA_ENTRY;
-   
-   ++nc; if (nc > 9) nc = 0;
-   s = (char *)sa[nc]; s[0] = '\0';
-   
-   if (!gwh) SUMA_RETURN(s);
-   
-   for (k=0; k<gwh->name_lvl; ++k) {
-      strncat(s,gwh->name[k], 640);
-      if (k<gwh->name_lvl-1) strncat(s,"->", 640);
-   }
-   
-   SUMA_RETURN(s);
-}
-
-char *SUMA_All_GUI_Help_Info(DList *dl, int detail, int format)
-{
-   static char FuncName[]={"SUMA_All_GUI_Help_Info"};
-   SUMA_STRING *SS=NULL;
-   DListElmt *el=NULL;
-   char *s=NULL;
-   GUI_WIDGET_HELP *gwh=NULL;
-   
-   SUMA_ENTRY;
-   
-   SS = SUMA_StringAppend (NULL, NULL);
-
-   if (!dl) {
-      SS = SUMA_StringAppend(SS,"NULL dl");  
-   } else {
-      SS = SUMA_StringAppend_va(SS,
-                                "Help for %d widgets. Detail %d, Format %d\n"
-                                "--------------------------------------------\n",
-                                dlist_size(dl), detail, format);
-      el = dlist_head(dl);
-      do {
-         gwh = (GUI_WIDGET_HELP *)el->data;
-         if (!gwh) SUMA_StringAppend(SS,"NULL widget data!");
-         else {
-               SUMA_StringAppend_va(SS,"Widget: %s\n", SUMA_Name_GUI_Help(gwh));
-            if (detail > 0)
-               SUMA_StringAppend_va(SS,"  hint: %s\n", gwh->hint);
-            if (detail > 1) {
-               s = SUMA_copy_string(gwh->help);
-               switch (format) {
-                  case 0:
-                     SUMA_Sphinx_String_Edit(&s, TXT, 0);
-                     SUMA_StringAppend_va(SS,"  help: %s\n", s);
-                     SUMA_ifree(s);
-                     break;
-                  default:
-                  case 1:
-                     SUMA_Sphinx_String_Edit(&s, SPX, 0);
-                     SUMA_StringAppend_va(SS,"  help: %s\n", s);
-                     SUMA_ifree(s);
-                     break;
-               }
-            }
-            SUMA_StringAppend_va(SS,"\n");
-         }
-         el = dlist_next(el);   
-      } while (el);
-   }
-   
-   SUMA_StringAppend_va(SS,"\n");
-   
-   SUMA_SS2S(SS, s);
-   SUMA_RETURN(s);
-}
-
-/*!
-   Return the help and hint strings stored in the GUI help list.
-   
-   \param gname (char *)Name of widget
-   \param format (int) 0: Default
-                       1: Sphinx format
-   \param helpout (char **): If Not NULL, this will contain
-                             the pointer to a copy of the help string
-                             formatted per format.
-                             Note that if helpout, *helpout 
-                             must be NULL at the function call.
-                             You must also free *helpout when 
-                             done with it.
-   \param hintout (char **): If Not NULL, this will contain
-                             the pointer to a copy of the hint string
-                             formatted per format. 
-                             if (hintout), *hintout must be NULL at  
-                             function call. You must also free *hintout 
-                             when done with it.
-   \param whelp_off (int ): If non-zero, number of blank charcters by which
-                            to offset the lines of a widget's help string 
-   \return gwh (GUI_WIDGET_HELP *)  A pointer to the structure containing 
-                                    the widget help. 
-                                    NULL if nothing was found.
-*/ 
-GUI_WIDGET_HELP *SUMA_Get_GUI_Help( char *gname, TFORM format, 
-                                    char **helpout, char **hintout,
-                                    int whelp_off)
-{
-   static char FuncName[]={"SUMA_Get_GUI_Help"};
-   char *s = NULL;
-   DListElmt *el = NULL;
-   int nn;
-   GUI_WIDGET_HELP *gwhc=NULL;
-   
-   SUMA_ENTRY;
-   
-   if (!gname) { SUMA_S_Err("NULL name"); SUMA_RETURN(gwhc);}
-   
-   if (!All_GUI_Help || !dlist_size(All_GUI_Help)) {
-      SUMA_S_Err("No help list");
-      SUMA_RETURN(gwhc);
-   }
-   if ((helpout && *helpout) || (hintout && *hintout)) {
-      SUMA_S_Err("string init error");
-      SUMA_RETURN(gwhc);
-   }
-   
-   /* Seek name in list */
-   
-   /* Find name in list. 
-      Note that no attempt at fast search is done here even though the 
-      list is alphabetical... */
-   gwhc = NULL;
-   do {
-      if (!el) el = dlist_head(All_GUI_Help);
-      else el = dlist_next(el);
-      gwhc = (GUI_WIDGET_HELP *)el->data;
-      if ((nn = strcmp(SUMA_Name_GUI_Help(gwhc), 
-                       gname)) == 0) {
-         el = NULL;
-      } else {
-         gwhc = NULL;
-      }
-   } while (el && el != dlist_tail(All_GUI_Help));
-   
-   if (gwhc) {
-      if (helpout) {
-         *helpout = SUMA_copy_string(gwhc->help);
-         if (gwhc->type == 1 && whelp_off) {/* widget and offset requested */
-            SUMA_Sphinx_String_Edit(helpout, format, whelp_off);
-         } else {
-            SUMA_Sphinx_String_Edit(helpout, format, 0);
-         }
-      }
-      if (hintout) {
-         *hintout = SUMA_copy_string(gwhc->hint);
-         SUMA_Sphinx_String_Edit(hintout, format, 0);
-      }
-   }
-   
-   SUMA_RETURN(gwhc);
-}
-
-void SUMA_Show_All_GUI_Help(DList *dl, FILE *fout, int detail, int format)
-{
-   static char FuncName[]={"SUMA_Show_All_GUI_Help"};
-   char *s=NULL;
-   
-   SUMA_ENTRY;
-   
-   if (!fout) fout = stdout;
-   
-   s = SUMA_All_GUI_Help_Info(dl, detail, format);
-   
-   fprintf(fout, "%s", s);
-   
-   SUMA_ifree(s);
-   
-   SUMA_RETURNe;
-}
 
 char *SUMA_do_type_2_contwname(SUMA_DO_Types do_type)
 {
@@ -3241,8 +2757,11 @@ char *SUMA_do_type_2_contwname(SUMA_DO_Types do_type)
       case not_DO_type:
          snprintf(ss, 63,"SumaCont");
          break;
-      case SDSET_type:
+      case GDSET_type:
          snprintf(ss, 63,"NoCont");
+         break;
+      case CDOM_type:
+         snprintf(ss, 63,"CiftiCont");
          break;
       default:
          snprintf(ss, 63,"NOT_SET_FIX_ME");
@@ -3255,53 +2774,54 @@ char *SUMA_do_type_2_contwname(SUMA_DO_Types do_type)
    SUMA_RETURN(ss);
 }
 
-void SUMA_suggest_GUI_Name_Match(char *wname, int nmx, DList *dl)
+char *SUMA_All_Documented_Widgets(void)
 {
-   static char FuncName[]={"SUMA_suggest_GUI_Name_Match"};
-   int i, nlot;
-   char **lot=NULL, **slot=NULL;
-   DListElmt *el=NULL;
-   GUI_WIDGET_HELP *gwhc=NULL;
+   static char FuncName[]={"SUMA_All_Documented_Widgets"};
+   char *s=NULL;
+   SUMA_ENTRY;
+   s = SUMA_append_replace_string(s,SUMA_Help_AllSumaCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllSurfCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllGraphCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllTractCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllMaskCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllVolCont(TXT),"\n",3);
+   s = SUMA_append_replace_string(s,SUMA_Help_AllROICont(TXT),"\n",3);
+   SUMA_RETURN(s);
+}
+
+char * SUMA_gsf(char *uwname, TFORM target, char **hintout, char **helpout)
+{
+   static char FuncName[]={"SUMA_gsf"};
+   static char sss[64]={"You Should Never Get This"};
+   static int lock = 0;
+   char *DW = SUMA_get_DocumentedWidgets();
    
    SUMA_ENTRY;
    
-   if (!dl) dl = All_GUI_Help;
-   
-   if (!dl || !dlist_size(dl)) {
-      SUMA_S_Err("No list to be had");
-      SUMA_RETURNe;
-   }
-   lot = (char **)SUMA_calloc(dlist_size(dl), sizeof(char *));
-   nlot = 0; i = 0;
-   gwhc = NULL;
-   do {
-      if (!el) el = dlist_head(dl);
-      else el = dlist_next(el);
-      gwhc = (GUI_WIDGET_HELP *)el->data;
-      lot[i] = SUMA_copy_string(SUMA_Name_GUI_Help(gwhc));
-      ++i;
-   } while (el && el != dlist_tail(dl));
-   nlot = i;
-  
-   slot = approx_str_sort(lot, nlot, wname, 0, NULL, 0, NULL, NULL);
-   
-   if (nmx < 0) nmx = nlot;
-   fprintf(SUMA_STDERR,
-               "Suggestions for %s\n"
-               "---------------\n", wname);
-   for (i=0; i < nlot && i < nmx; ++i) {
-      fprintf(SUMA_STDERR,
-               "                %s\n", slot[i]);
+   if (target == WEB && !DW) { /* That is when gsf needs DocumentedWidgets */
+      char *ss=NULL;
+      if (!lock) {
+         /* Need to init list of all documented widgets */
+         /* Careful - next function will call SUMA_gsf() also.
+         Make sure SUMA_gsf() does not rely on DocumentedWidgets
+         for anything but WEB targ */
+         ss = SUMA_All_Documented_Widgets();
+         SUMA_set_DocumentedWidgets(&ss);
+         DW = SUMA_get_DocumentedWidgets();
+         if (!DW) {
+            SUMA_S_Err("Should not fail here");
+            lock = 1;
+            SUMA_RETURN(sss);
+         }
+      } else {
+         SUMA_S_Err("Failed and locked out");
+         SUMA_RETURN(sss);
+      }
    }
    
-   for (i=0; i < nlot; ++i) {
-      SUMA_ifree(lot[i]);
-      SUMA_ifree(slot[i]);
-   }
-   SUMA_ifree(lot);
-   SUMA_ifree(slot);
-   SUMA_RETURNe;
+   SUMA_RETURN(SUMA_gsf_eng(uwname, target, hintout, helpout));
 }
+
 
 char * SUMA_Help_AllSurfCont (TFORM targ)
 {
@@ -3317,16 +2837,22 @@ char * SUMA_Help_AllSurfCont (TFORM targ)
                      "SurfCont->Surface_Properties->Trn",
                      "SurfCont->Surface_Properties->Dsets",
                      "SurfCont->Xhair_Info",
+                     "SurfCont->Xhair_Info->Xhr",
                      "SurfCont->Xhair_Info->Xhr.r00",
+                     "SurfCont->Xhair_Info->Node",
                      "SurfCont->Xhair_Info->Node.r00",
                    /*"SurfCont->Xhair_Info->Node[1]",   Hints/help on headings */
                    /*"SurfCont->Xhair_Info->Node[2]",   Hints/help on headings */
+                     "SurfCont->Xhair_Info->Tri",
                      "SurfCont->Xhair_Info->Tri.r00",
                    /*"SurfCont->Xhair_Info->Tri[1]",   Hints/help on headings */
                    /*"SurfCont->Xhair_Info->Tri[2]",   Hints/help on headings */
+                     "SurfCont->Xhair_Info->Val",
                      "SurfCont->Xhair_Info->Val.c00",
+                     "SurfCont->Xhair_Info->Lbl",
                      "SurfCont->Xhair_Info->Lbl.r00",
                      "SurfCont->Dset_Controls",
+                     "SurfCont->Dset_Controls->Lbl+Par",
                      "SurfCont->Dset_Controls->Lbl+Par.r00",
                      "SurfCont->Dset_Controls->Ord",
                      "SurfCont->Dset_Controls->Opa",
@@ -3344,10 +2870,12 @@ char * SUMA_Help_AllSurfCont (TFORM targ)
                      "SurfCont->Dset_Mapping->T->v",
                      "SurfCont->Dset_Mapping->B",
                      "SurfCont->Dset_Mapping->B->v",
+                     "SurfCont->Dset_Mapping->ThrVal",
                      "SurfCont->Dset_Mapping->ThrVal[0]",
                      "SurfCont->Dset_Mapping->Cmap->bar",
                      "SurfCont->Dset_Mapping->Cmap->scale",
                      "SurfCont->Dset_Mapping->Cmap->pval",
+                     "SurfCont->Dset_Mapping->SetRangeTable",
                      "SurfCont->Dset_Mapping->SetRangeTable.c00",
                      "SurfCont->Dset_Mapping->SetRangeTable.r01",
                      "SurfCont->Dset_Mapping->SetRangeTable.r02",
@@ -3359,8 +2887,10 @@ char * SUMA_Help_AllSurfCont (TFORM targ)
                      "SurfCont->Dset_Mapping->abs_T",
                      "SurfCont->Dset_Mapping->sym_I",
                      "SurfCont->Dset_Mapping->shw_0",
+                     "SurfCont->Dset_Mapping->Clst",
                      "SurfCont->Dset_Mapping->Clst.c00",
                      "SurfCont->Dset_Mapping->Clst.c01",
+                     "SurfCont->Dset_Mapping->RangeTable",
                      "SurfCont->Dset_Mapping->RangeTable.c00",
                      "SurfCont->Dset_Mapping->RangeTable.r01",
                      "SurfCont->Dset_Mapping->RangeTable.r02",
@@ -3506,10 +3036,15 @@ char * SUMA_Help_AllGraphCont (TFORM targ)
                      "GraphCont->Graph_Dset_Properties",
                      "GraphCont->Graph_Dset_Properties->more",
                      "GraphCont->Xhair_Info",
+                     "GraphCont->Xhair_Info->Xhr",
                      "GraphCont->Xhair_Info->Xhr.r00",
+                     "GraphCont->Xhair_Info->Edge",
                      "GraphCont->Xhair_Info->Edge.r00",
+                     "GraphCont->Xhair_Info->Node",
                      "GraphCont->Xhair_Info->Node.r00",
+                     "GraphCont->Xhair_Info->Val",
                      "GraphCont->Xhair_Info->Val.c00",
+                     "GraphCont->Xhair_Info->Lbl",
                      "GraphCont->Xhair_Info->Lbl.r00",
                      "GraphCont->GDset_Controls",
                      "GraphCont->GDset_Controls->Dim",
@@ -3533,6 +3068,7 @@ char * SUMA_Help_AllGraphCont (TFORM targ)
                      "GraphCont->GDset_Mapping->T->v",
                      "GraphCont->GDset_Mapping->B",
                      "GraphCont->GDset_Mapping->B->v",
+                     "GraphCont->GDset_Mapping->ThrVal",
                      "GraphCont->GDset_Mapping->ThrVal[0]",
                      "GraphCont->GDset_Mapping->Cmap->bar",
                      "GraphCont->GDset_Mapping->Cmap->scale",
@@ -3547,6 +3083,7 @@ char * SUMA_Help_AllGraphCont (TFORM targ)
                      "GraphCont->GDset_Mapping->abs_T",
                      "GraphCont->GDset_Mapping->sym_I",
                      "GraphCont->GDset_Mapping->shw_0",
+                     "GraphCont->GDset_Mapping->RangeTable",
                      "GraphCont->GDset_Mapping->RangeTable.c00",
                      "GraphCont->GDset_Mapping->RangeTable.r01",
                      "GraphCont->GDset_Mapping->RangeTable.r02",
@@ -3705,10 +3242,15 @@ char * SUMA_Help_AllVolCont (TFORM targ)
                      "VolCont->Volume_Properties",
                      "VolCont->Volume_Properties->more",
                      "VolCont->Xhair_Info",
+                     "VolCont->Xhair_Info->Xhr",
                      "VolCont->Xhair_Info->Xhr.r00",
+                     "VolCont->Xhair_Info->Ind",
                      "VolCont->Xhair_Info->Ind.r00",
+                     "VolCont->Xhair_Info->IJK",
                      "VolCont->Xhair_Info->IJK.r00",
+                     "VolCont->Xhair_Info->Val",
                      "VolCont->Xhair_Info->Val.c00",
+                     "VolCont->Xhair_Info->Lbl",
                      "VolCont->Xhair_Info->Lbl.r00",
                      "VolCont->Slice_Controls",
                      "VolCont->Ax_slc->Ax",
@@ -3720,6 +3262,7 @@ char * SUMA_Help_AllVolCont (TFORM targ)
                      "VolCont->VR->Ns",
                      "VolCont->VR->Ns->v",
                      "VolCont->Dset_Controls",
+                     "VolCont->Dset_Controls->Lbl",
                      "VolCont->Dset_Controls->Lbl.r00",
                      "VolCont->Dset_Controls->Dim",
                      "VolCont->Dset_Controls->Avl",
@@ -3732,10 +3275,12 @@ char * SUMA_Help_AllVolCont (TFORM targ)
                      "VolCont->Dset_Mapping->T->v",
                      "VolCont->Dset_Mapping->B",
                      "VolCont->Dset_Mapping->B->v",
+                     "VolCont->Dset_Mapping->ThrVal",
                      "VolCont->Dset_Mapping->ThrVal[0]",
                      "VolCont->Dset_Mapping->Cmap->bar",
                      "VolCont->Dset_Mapping->Cmap->scale",
                      "VolCont->Dset_Mapping->Cmap->pval",
+                     "VolCont->Dset_Mapping->SetRangeTable",
                      "VolCont->Dset_Mapping->SetRangeTable.c00",
                      "VolCont->Dset_Mapping->SetRangeTable.r01",
                      "VolCont->Dset_Mapping->SetRangeTable.r02",
@@ -3746,6 +3291,7 @@ char * SUMA_Help_AllVolCont (TFORM targ)
                      "VolCont->Dset_Mapping->abs_T",
                      "VolCont->Dset_Mapping->sym_I",
                      "VolCont->Dset_Mapping->shw_0",
+                     "VolCont->Dset_Mapping->RangeTable",
                      "VolCont->Dset_Mapping->RangeTable.c00",
                      "VolCont->Dset_Mapping->RangeTable.r01",
                      "VolCont->Dset_Mapping->RangeTable.r02",
@@ -3832,10 +3378,13 @@ char * SUMA_Help_AllMaskCont (TFORM targ)
    SUMA_STRING *SS = NULL;
    char *worder[] = {"MaskCont",
                      "MaskCont->Masks",
+                     "MaskCont->Masks->Mask_Eval",
                      "MaskCont->Masks->Mask_Eval.r00",
                      "MaskCont->Masks->Mask_Eval->v",
+                     "MaskCont->Masks->Tract_Length",
                      "MaskCont->Masks->Tract_Length.r00",
                      "MaskCont->Masks->Tract_Length->v",
+                     "MaskCont->Masks->Table",
                      "MaskCont->Masks->Table.c00",
                      "MaskCont->Masks->Table.c01",
                      "MaskCont->Masks->Table.c02",
@@ -3913,12 +3462,18 @@ char * SUMA_Help_AllTractCont (TFORM targ)
                      "TractCont->Tract_Properties",
                      "TractCont->Tract_Properties->more",
                      "TractCont->Xhair_Info",
+                     "TractCont->Xhair_Info->Xhr",
                      "TractCont->Xhair_Info->Xhr.r00",
+                     "TractCont->Xhair_Info->Ind",
                      "TractCont->Xhair_Info->Ind.r00",
+                     "TractCont->Xhair_Info->BTP",
                      "TractCont->Xhair_Info->BTP.r00",
+                     "TractCont->Xhair_Info->Val",
                      "TractCont->Xhair_Info->Val.c00",
+                     "TractCont->Xhair_Info->Lbl",
                      "TractCont->Xhair_Info->Lbl.r00",
                      "TractCont->Coloring_Controls",
+                     "TractCont->Coloring_Controls->Lbl",
                      "TractCont->Coloring_Controls->Lbl.r00",
                      "TractCont->Coloring_Controls->Dim",
                      "TractCont->Coloring_Controls->Ord",

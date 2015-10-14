@@ -443,6 +443,7 @@ typedef struct {
   MCW_bbox *save_as_mask_bbox ; /* 16 Jun 2014 */
   MCW_bbox *histsqrt_bbox ;
   MCW_bbox *spearman_bbox ; /* 02 Jan 2013 */
+  MCW_bbox *detrend_bbox  ; /* 14 May 2015 */
 
   MCW_bbox *usemask_bbox ;  /* zero-th row of controls [01 Aug 2011] */
 
@@ -472,6 +473,8 @@ typedef struct {
   int receive_on ;
   int save_as_mask ;
   float hbot,htop ;
+
+  int linkrbrain_nclu ;     /* 09 Sep 2015 */
 
   Widget     splot_pb , splot_clear_pb ;
   MRI_IMAGE *splotim ;       /* selected from spplot_pb */

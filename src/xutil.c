@@ -109,8 +109,9 @@ void MCW_set_colormap( Widget w , Colormap cmap )
    swap the fg and bg colors of a widget
    (the shadow colors are altered to fit the new bg)
 ----------------------------------------------------------------------*/
+void MCW_invert_widget( Widget w ) { return(MCW_invert_widget_sync(w,1)); }
 
-void MCW_invert_widget( Widget w )
+void MCW_invert_widget_sync( Widget w , int sync)
 {
    Pixel bg_pix=0 , topsh_pix=0 , botsh_pix=0 , fg_pix=0 , sel_pix=0 ;
    Colormap cmap ;
@@ -118,7 +119,7 @@ void MCW_invert_widget( Widget w )
    memset(&cmap, 0, sizeof(cmap));
 
    if( ! XtIsWidget(w) ) return ;
-   SYNC(w) ;
+   if (sync) { SYNC(w) ; }
 
    XtVaGetValues( w , XmNforeground , &bg_pix ,  /* foreground -> bg */
                       XmNbackground , &fg_pix ,  /* background -> fg */
@@ -138,8 +139,10 @@ void MCW_invert_widget( Widget w )
                     XmNbackground        , bg_pix    ,
                   NULL ) ;
 
-   XSync( XtDisplay(w) , False ) ;  /* make it happen NOW */
-   XmUpdateDisplay( w ) ;
+   if (sync) {
+      XSync( XtDisplay(w) , False ) ;  /* make it happen NOW */
+      XmUpdateDisplay( w ) ;
+   }
    return ;
 }
 
@@ -393,6 +396,21 @@ char * MCW_hotcolor(Widget w)
      redcolor = (xdef != NULL) ? (xdef) : ("red4") ;
    }
    return redcolor ;
+}
+
+/*--------------------------------------------------------------------------*/
+
+char * MCW_buthighlight(Widget w)
+{
+   static char *buthighlight = NULL ;
+
+   if( buthighlight == NULL ){
+     char *xdef = RWC_getname( (w!=NULL) ? XtDisplay(w) : NULL,
+                                                "buthighlight" ) ;
+
+     buthighlight = (xdef != NULL) ? (xdef) : ("blue2") ;
+   }
+   return buthighlight ;
 }
 
 /*--------------------------------------------------------------------------
@@ -724,7 +742,7 @@ void MCW_popup_message_once( Widget w, char *msg, char *expiry, char *codestring
        }
        eyear = (int)strtol(dc,NULL,10)-1900 ;
        if( emon >= 0 && emon < 12 && eday > 0 && eday < 32 && eyear > 0 ){
-			if( lt->tm_year >  eyear ) return ;  /* past the expiry year == DONE */
+         if( lt->tm_year >  eyear ) return ;  /* past the expiry year == DONE */
          if( lt->tm_year == eyear ){          /* in expiry year */
            if( lt->tm_mon >  emon ) return ;  /* past expiry month    == DONE */
            if( lt->tm_mon == emon ){          /* in expiry month */

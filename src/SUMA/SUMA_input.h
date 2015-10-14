@@ -105,6 +105,8 @@ int SUMA_MarkLineCutplaneIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov,
                                     int IgnoreSameNode);
 int SUMA_ComputeLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov, 
                                        int IgnoreSameNode, SUMA_ALL_DO **pado);
+int SUMA_ComputeLineVOvrIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov, 
+                                       int IgnoreSameNode, SUMA_ALL_DO **pado);
 int SUMA_Apply_PR_VO(SUMA_SurfaceViewer *sv, SUMA_VolumeObject *VO, 
                      SUMA_PICK_RESULT **PRi); 
 int SUMA_MarkLineVOslicesIntersect (SUMA_SurfaceViewer *sv, SUMA_DO *dov, 
@@ -173,6 +175,8 @@ void SUMA_JumpIndex_GDSET (char *s, SUMA_SurfaceViewer *sv,
                            SUMA_DSET *dset, char *variant);
 void SUMA_JumpIndex_TDO (char *s, SUMA_SurfaceViewer *sv, 
                            SUMA_TractDO *tdo);
+void SUMA_JumpIndex_CO (char *s, SUMA_SurfaceViewer *sv, 
+                        SUMA_CIFTI_DO *co);
 void SUMA_JumpIndex_VO (char *s, SUMA_SurfaceViewer *sv, 
                         SUMA_VolumeObject *vo);
 void SUMA_JumpIndex_MDO (char *s, SUMA_SurfaceViewer *sv, SUMA_MaskDO *mo);

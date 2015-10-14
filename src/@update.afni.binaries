@@ -34,6 +34,8 @@ history for $prog :
   14 Jan 2014 : added more system programs
   01 May 2014 : added -quick option; fixed sync of backup, was nesting
   15 Jan 2015 : if bad option and current version, fail after version check
+  08 Apr 2015 : added -revert (zsaad and rickr)
+  25 Aug 2015 : update path and AFNI tab completion on initial install
 -------------------------------------------------------------------------------
 EOF
 exit
@@ -67,6 +69,7 @@ set use_curl    = 0
 set do_apsearch = 1     # run apserach -update_all_afni_help
 set do_recur    = 1     # download a new version of @uab, first
 set quick       = 0     # no fancies (recur, apsearch)
+set revert      = 0     # revert binaries to those in backup directory
 
 set bad_opt     = ''    # if bad_opt and do_recur, see if we continue
 
@@ -101,6 +104,8 @@ while ( $ac <= $#argv )
         exit 0
     else if ( "$argv[$ac]" == "-hist" ) then
         goto SHOW_HIST
+    else if ( "$argv[$ac]" == "-revert" ) then
+        set revert = 1
     else if ( "$argv[$ac]" == "-package" ) then
         @ ac ++
         if ( $ac > $#argv ) then
@@ -233,6 +238,18 @@ if ( $help ) then
     echo ""
     echo "    -test                 : just attempt the download and quit"
     echo ""
+    echo "    -revert               : revert binaries to previous version"
+    echo ""
+    echo "        Revert the AFNI binaries to those in directory"
+    echo "        ABIN/auto_backup.PACKAGE, where ABIN would otherwise be"
+    echo "        considered the installation directory."
+    echo ""
+    echo "        Use this option if the last update of the binaries got"
+    echo "        you a lump of coal." 
+    echo ""
+    echo "        There should be only 1 backup to revert to.  One cannot"
+    echo "        revert back 2 levels, say."
+    echo ""
     echo "Note that the user must have write permissions in the ABIN"
     echo "directory."
     echo ""
@@ -244,9 +261,11 @@ which afni >& /dev/null
 if ( $status ) then
    echo "-- no current AFNI package..."
    set cur_afni = ""
+   set new_install = 1
 else
    set cur_afni = `which afni`
    set cur_afni = $cur_afni:h
+   set new_install = 0
    echo "-- have AFNI binaries under $cur_afni"
 endif
 
@@ -344,6 +363,10 @@ echo "   install dir: $abin..."
 if ( -d $abin ) then
    echo "-- have install dir"
 else
+   if ( $revert == 1 ) then
+      echo "** error: no install directory to revert from"
+      exit 1
+   endif
    echo "++ creating install dir"
    mkdir -pv $abin
    if ( $status ) then
@@ -379,7 +402,7 @@ foreach cprog ( $system_progs )
       @ nerr ++
    endif
 end
-if ( $nerr > 0 ) then
+if ( $nerr > 0 && ! $revert ) then
     echo "** found $nerr system program(s)"
     if ( $sys_ok ) then
        echo "continuing from -sys_ok..."
@@ -399,7 +422,7 @@ endif
 
 # ----------------------------------------------------------------------
 # remove any old package
-if ( -f $package.tgz || -d $package ) then
+if ( ! $revert && ( -f $package.tgz || -d $package ) ) then
     echo nuking old package...
     \rm -fr $package $package.tgz
     if ( $status ) then
@@ -498,7 +521,7 @@ if ( $do_recur ) then
    else
       echo "-- $prog is current, continuing with this version..."
       if ( "$bad_opt" != "" ) then
-         echo "** unknown option $argv[$ac]"
+         echo "** unknown option $bad_opt"
          exit 1
       endif
    endif
@@ -506,6 +529,27 @@ else
    echo "-- skipping update of $prog"
 endif
 SKIP_RECUR:
+
+# ----------------------------------------------------------------------
+# revert to previous version, if requrested
+if ( $revert ) then
+   # revert to backup
+   if ( ! -d ../$backup_dir ) then
+      echo "** failed to find backup directory ../$backup_dir"
+      exit 1
+   else
+      echo "++ revert: under `pwd`, running:"
+      echo "           rsync -av ../$backup_dir/ ../"
+      rsync -av ../$backup_dir/ ../
+      if ( $status ) then
+         echo "** rsync failed"
+         exit 1 
+      else
+         echo "-- binaries now replaced with those from $abin/$backup_dir"
+      endif
+   endif
+   exit 0
+endif
 
 # ----------------------------------------------------------------------
 # just download single afni binary and compare
@@ -669,12 +713,53 @@ else
    endif
 endif
 
+# if this is a new install and we are not root, update .cshrc
+set rcfile = ~/.cshrc
+if ( $new_install && -d $abin && $?USER ) then
+   if ( $USER != root ) then
+      if ( -f ~/.tcshrc ) then
+         set rcfile = ~/.tcshrc
+      else if ( -f ~/.cshrc ) then
+         set rcfile = ~/.cshrc
+      else
+         set rcfile = ~/.cshrc
+         echo ++ creating empty $rcfile
+         echo "" > $rcfile
+      endif
+
+      grep $abin:t $rcfile >& /dev/null
+      if ( $status ) then
+         # finally, update .csrhc and our current path
+         echo "++ updating path in $rcfile ..."
+         echo 'set path = ( $path ' $abin ' ) ' >> $rcfile
+         set path = ( $path $abin )
+      endif
+
+      rehash
+      set cur_afni = `which afni`
+      set cur_afni = $cur_afni:h
+   endif
+endif
+
 # and possibly run apsearch
 if ( $do_apsearch && $cur_afni == $abin && $#prog_list == 0 ) then
    rehash
    set cmd = "apsearch -update_all_afni_help"
    echo "++ running $cmd ..."
    $cmd
+   
+   grep afni_help_dir $rcfile >& /dev/null
+   if ( $status && -f $rcfile ) then
+      cat << EOF >> $rcfile
+
+set ahdir = \`apsearch -afni_help_dir\`
+if ( -f \$ahdir/all_progs.COMP ) then
+   source \$ahdir/all_progs.COMP
+endif
+
+EOF
+   endif
+
 endif
 
 # maybe they need to set the DYLD_F_L_P

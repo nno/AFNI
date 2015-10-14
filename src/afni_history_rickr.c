@@ -49,6 +49,648 @@
 
 afni_history_struct rickr_history[] = {
 
+ { 25,  Sep, 2015, RCR, "suma", MICRO, TYPE_MODIFY,
+   "volume rendering is no longer the default for SUMA_VO_InitSlices",
+   "So Do_06_VISdti_SUMA_visual_ex1.tcsh defaults to showing 3 volume slices."
+ } ,
+
+ { 24,  Sep, 2015, RCR, "ccalc", MICRO, TYPE_MODIFY,
+   "make dependency on libmri explicit",
+   "Some of these operations are for building on Fedora 22."
+ } ,
+
+ { 24,  Sep, 2015, RCR, "afni-general", MICRO, TYPE_ENHANCE,
+   "inline func with static vars should be static",
+   "Fails to link in Fedora 22."
+ } ,
+
+ { 24,  Sep, 2015, RCR, "vol2surf", MICRO, TYPE_ENHANCE,
+   "restrict THD_extract_series error messages (e.g. for RGB datasets)",
+   "Requested by P Taylor."
+ } ,
+
+ { 24,  Sep, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
+   "allow 3dD to proceed with only extra_stim_files",
+   NULL
+ } ,
+
+ { 16,  Sep, 2015, RCR, "suma", MICRO, TYPE_MODIFY,
+   "w/dglen SUMA_find_any_object: fixed loss of isGraphDset result",
+   NULL
+ } ,
+
+ { 11,  Sep, 2015, RCR, "3dBandpass", MICRO, TYPE_MODIFY,
+   "do not propagate scalars",
+   NULL
+ } ,
+
+ { 11,  Sep, 2015, RCR, "afni-general", MICRO, TYPE_BUG_FIX,
+   "edt_floatize.c: for NIFTI float->float with scale factors, apply them",
+   "Also, fix determination of when to convert.\n"
+   "Thanks to Pengmin (MB) for noting this problem."
+ } ,
+
+ { 10,  Sep, 2015, RCR, "afni_proc.py", MICRO, TYPE_BUG_FIX,
+   "fix resulting aligned SurfVol if input is NIFTI",
+   NULL
+ } ,
+
+ {  3,  Sep, 2015, RCR, "gen_ss_review_scripts.py", MICRO, TYPE_MODIFY,
+   "give REML priority in guessing stats_dset",
+   NULL
+ } ,
+
+ {  2,  Sep, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
+   "add -errts_dset to gen_ss_review_scripts.py command",
+   NULL
+ } ,
+
+ {  2,  Sep, 2015, RCR, "gen_ss_review_scripts.py", MICRO, TYPE_BUG_FIX,
+   "some option vars were being over-written",
+   NULL
+ } ,
+
+ {  2,  Sep, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
+   "if rest and REML, use REML errts",
+   NULL
+ } ,
+
+ {  1,  Sep, 2015, RCR, "gen_ss_review_scripts.py", MICRO, TYPE_ENHANCE,
+   "track errts dset, and possibly use it for voxel dims",
+   NULL
+ } ,
+
+ { 27,  Aug, 2015, RCR, "afni_system_check.py", MICRO, TYPE_ENHANCE,
+   "check for R packages via 'rPkgsInstall -pkgs ALL -check'",
+   NULL
+ } ,
+
+ { 26,  Aug, 2015, RCR, "Makefile.ptaylor.INCLUDE", MICRO, TYPE_ENHANCE,
+   "put -L.. before $LFLAGS to link local libjpeg",
+   NULL
+ } ,
+
+ { 25,  Aug, 2015, RCR, "@update.afni.binaries", MICRO, TYPE_ENHANCE,
+   "if initial install, update .cshrc",
+   "If initial install (afni not in PATH) and PATH not set in .csrhc,\n"
+   "update path (PATH) and do 'apsearch -afni_help_dir' update in .csrhc."
+ } ,
+
+ { 21,  Aug, 2015, RCR, "Makefile.INCLUDE", MICRO, TYPE_ENHANCE,
+   "move gifti_tool/cifti_tool from EXPROGS to PROGRAM_LIST",
+   "Modified 28 Makefiles."
+ } ,
+
+ { 21,  Aug, 2015, RCR, "Makefile.INCLUDE", MICRO, TYPE_ENHANCE,
+   "make cifti_tool",
+   NULL
+ } ,
+
+ { 21,  Aug, 2015, RCR, "cifti_tool", MICRO, TYPE_ENHANCE,
+   "updated help and added -hist",
+   NULL
+ } ,
+
+ { 21,  Aug, 2015, RCR, "timing_tool.py", MICRO, TYPE_BUG_FIX,
+   "start-of-run fix to -multi_timing_to_event_list offsets",
+   NULL
+ } ,
+
+ { 21,  Aug, 2015, RCR, "make_random_timing.py", MICRO, TYPE_ENHANCE,
+   "add more help for 'NOTE: distribution of ISI', including a short script",
+   NULL
+ } ,
+
+ { 20,  Aug, 2015, RCR, "make_random_timing.py", MINOR, TYPE_NEW_OPT,
+   "add -show_isi_pdf and -show_isi_f_pdf",
+   NULL
+ } ,
+
+ { 19,  Aug, 2015, RCR, "gen_ss_review_table.py", MINOR, TYPE_NEW_OPT,
+   "add -show_missing, to show all missing labels from all files",
+   NULL
+ } ,
+
+ { 14,  Aug, 2015, RCR, "afni-general", MICRO, TYPE_BUG_FIX,
+   "SUMA_CIFTI_2_edset: use 'no suma' version: SUMA_WriteDset_ns",
+   NULL
+ } ,
+
+ { 13,  Aug, 2015, RCR, "afni-general", MICRO, TYPE_ENHANCE,
+   "megrged cifti-toy branch from Ziad, for viewing CIFTI dataset in suma",
+   NULL
+ } ,
+
+ { 12,  Aug, 2015, RCR, "@radial_correlate", MICRO, TYPE_NEW_OPT,
+   "add -mask option, to apply instead of automask",
+   "Done for Giri."
+ } ,
+
+ { 12,  Aug, 2015, RCR, "gen_group_command.py", MINOR, TYPE_ENHANCE,
+   "allow for generic/unknown commands via -command (e.g. ls, 3dTcat)",
+   "Done for W-L Tseng."
+ } ,
+
+ {  7,  Aug, 2015, RCR, "3dhistog", MICRO, TYPE_NEW_OPT,
+   "add -noempty option, to ignore empty bins",
+   NULL
+ } ,
+
+ {  7,  Aug, 2015, RCR, "model_conv_PRF", MICRO, TYPE_MODIFY,
+   "make everything static, to avoid confusion",
+   NULL
+ } ,
+
+ {  7,  Aug, 2015, RCR, "model_conv_PRF_6", MICRO, TYPE_BUG_FIX,
+   "make everything static, to avoid confusion; proto for conv_set_ref",
+   NULL
+ } ,
+
+ {  5,  Aug, 2015, RCR, "nifti_tool", MICRO, TYPE_ENHANCE,
+   "apply library updates for potentially writing NIFTI-2",
+   NULL
+ } ,
+
+ {  5,  Aug, 2015, RCR, "NIFTI", MINOR, TYPE_ENHANCE,
+   "if conversion to NIFTI-1 header fails on write, try NIFTI-2",
+   NULL
+ } ,
+
+ {  5,  Aug, 2015, RCR, "afni-general", MICRO, TYPE_ENHANCE,
+   "add some support for reading Voxel_Bucket datasets into AFNI",
+   "That is a type that is currently specific to SUMA."
+ } ,
+
+ {  3,  Aug, 2015, RCR, "Dimon1", MICRO, TYPE_BUG_FIX,
+   "fixed -drive_afni, -drive_wait and -rt_cmd command lists",
+   NULL
+ } ,
+
+ {  3,  Aug, 2015, RCR, "Dimon", MICRO, TYPE_BUG_FIX,
+   "applied ACQUSITION_TYPE as 3d+timing",
+   "Slice timing was lost (by the plugin) in the change to 3d+t ACQ TYPE.\n"
+   "Thanks to H Mandelkow for bringing this up."
+ } ,
+
+ {  3,  Aug, 2015, RCR, "plug_realtime", MINOR, TYPE_ENHANCE,
+   "added DTYPE_3DTM (3D+timing) ACQUSITION_TYPE",
+   "Treats data as per volume, but with slice timing.  This is needed for\n"
+   "num_chan>0, but when data does not come in num_chan slices at a time."
+ } ,
+
+ { 31,  Jul, 2015, RCR, "@FindAfniDsetPath", MICRO, TYPE_ENHANCE,
+   "allow full paths to succeeed ; no args gives help",
+   NULL
+ } ,
+
+ { 30,  Jul, 2015, RCR, "@auto_tlrc", MICRO, TYPE_BUG_FIX,
+   "check for template existence even given path",
+   "Was failing with -init_xform."
+ } ,
+
+ { 29,  Jul, 2015, RCR, "gen_ss_reivew_scripts.py", MICRO, TYPE_MODIFY,
+   "block any _REMLvar stats dset (was _REMLvar+)",
+   "Might get stats*_REMLvar_nods, for example, via 3dREMLfit -dsort_nods."
+ } ,
+
+ { 29,  Jul, 2015, RCR, "afni_proc.py", MINOR, TYPE_ENHANCE,
+   "ANATICOR now works with task analysis, using -regress_reml_exec",
+   "Done for R W Cox."
+ } ,
+
+ { 29,  Jul, 2015, RCR, "3dcalc", MICRO, TYPE_MODIFY,
+   "clarify error about mis-match in number of volumes",
+   NULL
+ } ,
+
+ { 28,  Jul, 2015, RCR, "afni_proc.py", MINOR, TYPE_MODIFY,
+   "ANATICOR now includes zero volumes at censor points",
+   "This matches non-ANATICOR and fast ANATICOR cases."
+ } ,
+
+ { 27,  Jul, 2015, RCR, "afni_proc.py", MICRO, TYPE_MODIFY,
+   "renamed -regress_WMeL_corr to -regress_make_corr_AIC and default to 'no'",
+   NULL
+ } ,
+
+ { 24,  Jul, 2015, RCR, "afni-general", MICRO, TYPE_BUG_FIX,
+   "GIFTI datasets should have NODE_INDEX list as first DataArray",
+   "Thanks to N Oosterhof for pointing this out."
+ } ,
+
+ { 23,  Jul, 2015, RCR, "afni-general", MICRO, TYPE_ENHANCE,
+   "allow Graph_Bucket niml.dsets to be read, but just as 1D",
+   NULL
+ } ,
+
+ { 17,  Jul, 2015, RCR, "plug_realtime", MINOR, TYPE_ENHANCE,
+   "Dimon->afni: small TCP buffers cause volumes to be passed slowly",
+   "In iochan_recvall, increase nap time only if packets < 4K are recieved."
+ } ,
+
+ { 13,  Jul, 2015, RCR, "nifti_tool", MAJOR, TYPE_ENHANCE,
+   "nifti_tool is now based on NIFTI-2, with many corresponding new options",
+   "The old nifti_tool (based on NIFTI-1) is now nifti1_tool."
+ } ,
+
+ { 13,  Jul, 2015, RCR, "nifti1_tool", MINOR, TYPE_NEW_PROG,
+   "nifti1_tool is the NIFTI-1 version of nifti_tool",
+   NULL
+ } ,
+
+ { 13,  Jul, 2015, RCR, "NIFTI-2", MAJOR, TYPE_ENHANCE,
+   "added NIFTI-2 support into AFNI",
+   "Main source update: nifti/nifti2 tree, then applied it in mostly\n"
+   "   thd_niftiread/write.c (plus gifti_io.h, 3ddata.h, mrilib.h).\n"
+   "To compile into all of AFNI edit: Makefile.INCLUDE, SUMA_Makefile_NoDev,\n"
+   "   Makefile.avovk.INCLUDE and Makefile.ptaylor.INCLUDE."
+ } ,
+
+ {  11,  Jul, 2015, RCR, "@diff.files", MICRO, TYPE_NEW_OPT,
+   "added -longlist",
+   NULL
+ } ,
+
+ {  1,  Jul, 2015, RCR, "cifti_tool", MINOR, TYPE_NEW_OPT,
+   "reorg and more recur functions",
+   NULL
+ } ,
+
+ {  1,  Jul, 2015, RCR, "afni_proc.py", MICRO, TYPE_GENERAL,
+   "clarified help for -anat_unif_GM",
+   NULL
+ } ,
+
+ { 24,  Jun, 2015, RCR, "afni_xml_tool", MINOR, TYPE_NEW_OPT,
+   "afni_xml udpates, and start to afni_xml_tool",
+   NULL
+ } ,
+
+ { 18,  Jun, 2015, RCR, "3dExtrema", MINOR, TYPE_NEW_OPT,
+   "added -nbest",
+   "Output -nbest extrema; -quiet does not suppress extrema output."
+ } ,
+
+ { 17,  Jun, 2015, RCR, "GIFTI", MINOR, TYPE_NEW_OPT,
+   "added functions for reading from a buffer",
+   NULL
+ } ,
+
+ { 16,  Jun, 2015, RCR, "CIFTI", MINOR, TYPE_GENERAL,
+   "added initial nifti/cifti tree",
+   NULL
+ } ,
+
+ { 16,  Jun, 2015, RCR, "afni_proc.py", MINOR, TYPE_ENHANCE,
+   "applied -regress_stim_times_offset to typical timing files",
+   "Allows for stim timing offset when copying to stimuli directory."
+ } ,
+
+ { 15,  Jun, 2015, RCR, "nifti_tool", MINOR, TYPE_NEW_OPT,
+   "added -disp_cext",
+   NULL
+ } ,
+
+ { 10,  Jun, 2015, RCR, "auto_warp.py", MICRO, TYPE_BUG_FIX,
+   "clear any AFNI_COMPRESSOR variable, so that scripts do not get confused",
+   "NIFTI is the default, so avoid script confusion with automatic nii.gz.\n"
+   "In the future, maybe process as AFNI."
+ } ,
+
+ { 10,  Jun, 2015, RCR, "NIFTI", MICRO, TYPE_BUG_FIX,
+   "THD_open_one_dataset: let THD_open_nifti look for alternate files",
+   "CHECK_FOR_DATA() requires a file name match, but NIFTI is forgiving."
+ } ,
+
+ { 10,  Jun, 2015, RCR, "@diff.files", MAJOR, TYPE_NEW_PROG,
+   "compare list of files with those in other directory",
+   NULL
+ } ,
+
+ { 10,  Jun, 2015, RCR, "@diff.tree", MAJOR, TYPE_NEW_PROG,
+   "look for differences between files in two directories",
+   "Should merge @diff.files and @diff.tree, and change to python."
+ } ,
+
+ {  8,  Jun, 2015, RCR, "neuro_deconvolve.py", MICRO, TYPE_ENHANCE,
+   "allow -inputs to include paths",
+   NULL
+ } ,
+
+ {  6,  Jun, 2015, RCR, "timing_tool.py", MICRO, TYPE_NEW_OPT,
+   "added -per_run_file",
+   NULL
+ } ,
+
+ {  2,  Jun, 2015, RCR, "NIFTI", MICRO, TYPE_GENERAL,
+   "NIFTI-1,2: added NIFTI_ECODE_CIFTI/VARIABLE_FRAME_TIMING/EVAL/MATLAB",
+   NULL
+ } ,
+
+ {  1,  Jun, 2015, RCR, "nifti_tool", MINOR, TYPE_ENHANCE,
+   "diff/disp_hdr detects type; diff_hdr1/2",
+   NULL
+ } ,
+
+ {  1,  Jun, 2015, RCR, "3dttest++", MICRO, TYPE_NEW_OPT,
+   "added -dupe_ok and more warnings when dataset labels match",
+   NULL
+ } ,
+
+ { 27,  May, 2015, RCR, "@Install_TSrestMovieDemo", MICRO, TYPE_BUG_FIX,
+   "set and applied $demo as Suma_TSrestMovieDemo",
+   NULL
+ } ,
+
+ { 26,  May, 2015, RCR, "3dBlurToFWHM", MICRO, TYPE_MODIFY,
+   "make -help output consistent in using FWHM (along with 3dLocalstat)",
+   NULL
+ } ,
+
+ { 26,  May, 2015, RCR, "NIFTI", MINOR, TYPE_ENHANCE,
+   "nifti_read_header returns generic pointer; rename N-1/2 header read funcs",
+   NULL
+ } ,
+
+ { 22,  May, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
+   "help clarifications for -regress_ROI* options",
+   NULL
+ } ,
+
+ { 22,  May, 2015, RCR, "afni-general", MINOR, TYPE_MODIFY,
+   "allow for small differences when comparing oblique angles",
+   "Define OBLIQ_ANGLE_THRESH=0.01 as a tolerance for the difference.\n"
+   "This was done to fix registration to external dset in realtime.\n"
+   "Thanks to V Roopchansingh for bringing up the problem."
+ } ,
+
+ { 19,  May, 2015, RCR, "3dClustSim", MICRO, TYPE_MODIFY,
+   "do not allow -pthr to preceed -both or -niml",
+   "Otherwise -pthr values would be lost."
+ } ,
+
+ { 18,  May, 2015, RCR, "afni_proc.py", MINOR, TYPE_ENHANCE,
+   "allow ROI PC regression for local masks (not just external ones)",
+   "External ROIs should now be passed via -anat_follower_ROI, rather than\n"
+   "-regress_ROI_*, the latter no longer taking dataset parameters.\n"
+   "Also changed -regress_ROI_erode to -anat_follower_erode and\n"
+   "removed option -regress_ROI_maskave (use -regress_ROI)\n"
+   "Done for R W Cox."
+ } ,
+
+ { 18,  May, 2015, RCR, "gen_ss_review_table.py", MICRO, TYPE_NEW_OPT,
+   "mention gen_ss_review_scripts.py -help_fields in help",
+   NULL
+ } ,
+
+ {  8,  May, 2015, RCR, "afni_proc.py", MINOR, TYPE_NEW_OPT,
+   "added -regress_make_corr_vols",
+   "Use this to compute average correlation volumes for various masks."
+ } ,
+
+ {  7,  May, 2015, RCR, "afni_proc.py", MINOR, TYPE_MODIFY,
+   "replaced slow 3dTfitter with 3dTproject in anaticor",
+   "This should not affect the result, just the processing time."
+ } ,
+
+ {  5,  May, 2015, RCR, "afni_proc.py", MINOR, TYPE_ENHANCE,
+   "added help (inc Ex 11), follower modifications, WMe corr diag change",
+   NULL
+ } ,
+
+ {  4,  May, 2015, RCR, "afni_proc.py", MINOR, TYPE_NEW_OPT,
+   "added -anat_follower, -anat_follower_ROI, -regress_anaticor_label",
+   NULL
+ } ,
+
+ {  1,  May, 2015, RCR, "gen_ss_review_scripts.py", MICRO, TYPE_MODIFY,
+   "keep num regs of interest = 0 if num stim = 0",
+   NULL
+ } ,
+
+ { 30,  Apr, 2015, RCR, "afni_proc.py", MICRO, TYPE_NEW_OPT,
+   "allow AM2 centering param via basis backdoor (for now)",
+   "For example, use basis function 'BLOCK(2) :x:0.176'\n"
+   "Done for J Britton."
+ } ,
+
+ { 29,  Apr, 2015, RCR, "NIFTI", MINOR, TYPE_MODIFY,
+   "allow reading and writing unknown extensions",
+   NULL
+ } ,
+
+ { 28,  Apr, 2015, RCR, "NIFTI", MINOR, TYPE_NEW_PROG,
+   "added clib_02.nifti2.c demo and Makefile",
+   NULL
+ } ,
+
+ { 28,  Apr, 2015, RCR, "NIFTI", MAJOR, TYPE_ENHANCE,
+   "apply updates to NIFTI-2 I/O library",
+   "Also, include initial mods to nifti_tool, hidden under nifti2 dir."
+ } ,
+
+ { 28,  Apr, 2015, RCR, "NIFTI", MINOR, TYPE_GENERAL,
+   "add nifti/nifti2 directory with current NIFTI-1 versions of 4 files",
+   "This tracks initial changes to nifti2_io.[ch] nifti_tool.[ch]."
+ } ,
+
+ { 24,  Apr, 2015, RCR, "gen_group_command.py", MICRO, TYPE_ENHANCE,
+   "tiny help update: examples of usage regarding subject IDs",
+   NULL
+ } ,
+
+ { 23,  Apr, 2015, RCR, "gen_ss_review_scripts.py", MICRO, TYPE_NEW_OPT,
+   "add -help_fields[_brief], to describe the 'basic' output fields",
+   NULL
+ } ,
+
+ { 22,  Apr, 2015, RCR, "afni_proc.py", MINOR, TYPE_BUG_FIX,
+   "put in cat_matvec string to create warp.all.anat.aff12.1D",
+   "Thanks to sgreen (MB) for noting the problem."
+ } ,
+
+ { 22,  Apr, 2015, RCR, "afni_proc.py", MINOR, TYPE_ENHANCE,
+   "add -todo; help update; verify use of erode list",
+   NULL
+ } ,
+
+ { 22,  Apr, 2015, RCR, "file_tool", MINOR, TYPE_ENHANCE,
+   "add fix for non-unix files; allow for multiple tests with -prefix",
+   NULL
+ } ,
+
+ { 22,  Apr, 2015, RCR, "afni-general", MICRO, TYPE_MODIFY,
+   "Makefile.linux_fedora_19_64: alter -I dirs for glib to build on F21",
+   NULL
+ } ,
+
+ { 14,  Apr, 2015, RCR, "uber_subject.py", MICRO, TYPE_NEW_OPT,
+   "add MIN_OUTLIERS as an option for volreg base",
+   NULL
+ } ,
+
+ { 14,  Apr, 2015, RCR, "3dDeconvolve", MICRO, TYPE_MODIFY,
+   "PLOT_matrix_gray: add error messages to clarify malloc failures",
+   NULL
+ } ,
+
+ {  9,  Apr, 2015, RCR, "afni_proc.py", MICRO, TYPE_BUG_FIX,
+   "fix -tlrc_NL_warped_dsets for NIFTI anat; add some -regress_ROI_PC help",
+   NULL
+ } ,
+
+ {  8,  Apr, 2015, RCR, "@update.afni.binaries", MINOR, TYPE_ENHANCE,
+   "updated to Ziad's new -revert option",
+   NULL
+ } ,
+
+ {  8,  Apr, 2015, RCR, "afni_system_check.py", MICRO, TYPE_ENHANCE,
+   "check for FATCAT_DEMO",
+   NULL
+ } ,
+
+ {  7,  Apr, 2015, RCR, "afni_proc.py", MICRO, TYPE_BUG_FIX,
+   "TLRC_warped_dsets: no view update if type != BRIK",
+   NULL
+ } ,
+
+ {  7,  Apr, 2015, RCR, "afni_base.py", MICRO, TYPE_MODIFY,
+   "ppves: no sel -> no quotes; dset_dims: check failures and return 4 vals",
+   NULL
+ } ,
+
+ {  7,  Apr, 2015, RCR, "3dnvals", MICRO, TYPE_MODIFY,
+   "have 3dnvals return status 1 if all dataset opens fail",
+   NULL
+ } ,
+
+ {  2,  Apr, 2015, RCR, "afni_proc.py", MINOR, TYPE_NEW_OPT,
+   "added -tlrc_NL_warped_dsets to import 3dQwarp result",
+   "Added for P Molfese and others."
+ } ,
+
+ {  2,  Apr, 2015, RCR, "rickr/Makefile", MICRO, TYPE_BUG_FIX,
+   "Imon and serial_helper should not use LLIBS",
+   NULL
+ } ,
+
+ {  1,  Apr, 2015, RCR, "afni_proc.py", MAJOR, TYPE_NEW_OPT,
+   "anat followers and ROI_PC",
+   "Datasets can follow the anatomical warps\n"
+   "Added options -regress_ROI_PC, -regress_ROI_maskave, -regress_ROI_erode.\n"
+   "PC allows for some number of principle components to be regressed, and\n"
+   "   maskave is for mask averages to be regressed.\n"
+   "The _erode option applies to either, and happens before xform.\n"
+   "Also, any anat with skull is applied as a follower.\n"
+   "Also, -tcat_remove_first_trs can now take a list."
+ } ,
+
+ {  1,  Apr, 2015, RCR, "1d_tool.py", MICRO, TYPE_ENHANCE,
+   "allow -censor_fill_parent with 2D files",
+   NULL
+ } ,
+
+ { 31,  Mar, 2015, RCR, "1d_tool.py", MICRO, TYPE_ENHANCE,
+   "allow -censor_fill_parent with simple 1D files",
+   "Done for 3dpc and censoring in afni_proc.py."
+ } ,
+
+ { 30,  Mar, 2015, RCR, "afni-general", MINOR, TYPE_ENHANCE,
+   "update for selenium",
+   "Includes: Makefile.linux_openmp*, xorg7*, osx_10.7*, fedora19_64,\n"
+   "as well as Makefile.INCLUDE and rickr/Makefile for LLIBS."
+ } ,
+
+ { 23,  Mar, 2015, RCR, "python-general", MINOR, TYPE_ENHANCE,
+   "broke VarsObject class out into separate file",
+   NULL
+ } ,
+
+ { 19, Mar, 2015, RCR, "unix_tutorial", MINOR, TYPE_ENHANCE,
+   "populated AFNI_data6/unix_tutorial with Sphinx version",
+   "The previous tutorial was moved under 'old'."
+ } ,
+
+ { 18,  Mar, 2015, RCR, "sphinx", MAJOR, TYPE_ENHANCE,
+   "added unix_tutorial to the doc tree",
+   NULL
+ } ,
+
+ { 18,  Mar, 2015, RCR, "sphinx", MICRO, TYPE_MODIFY,
+   "renamed tutorials.rst to SelfGuidedScripts.rst, along with tag",
+   NULL
+ } ,
+
+ { 18,  Mar, 2015, RCR, "3dBandpass", MICRO, TYPE_ENHANCE,
+   "let user know details of demensionality reduction",
+   NULL
+ } ,
+
+ { 13,  Mar, 2015, RCR, "Dimon", MICRO, TYPE_NEW_OPT,
+   "added option -te_list to pass ECHO_TIMES to plug_realtime",
+   NULL
+ } ,
+
+ { 13,  Mar, 2015, RCR, "plug_realtime", MINOR, TYPE_ENHANCE,
+   "added code to receive and store ECHO_TIMES",
+   "This is passed as control information and is stored in rtin->TE."
+ } ,
+
+ { 13,  Mar, 2015, RCR, "plug_realtime", MINOR, TYPE_ENHANCE,
+   "added V Roopchansingh update for T2* est Merge function",
+   NULL
+ } ,
+
+ { 12,  Mar, 2015, RCR, "3dDeconvolve.py", MICRO, TYPE_MODIFY,
+   "allow for collinearity in regressor warnings",
+   NULL
+ } ,
+
+ { 12,  Mar, 2015, RCR, "afni_base.py", MICRO, TYPE_BUG_FIX,
+   "fixed capture in shell_exec2 for old python, where readlines() would hang",
+   NULL
+ } ,
+
+ { 12,  Mar, 2015, RCR, "afni_util.py", MICRO, TYPE_ENHANCE,
+   "implemented fast=0 in get/show_process_stack",
+   NULL
+ } ,
+
+ { 11,  Mar, 2015, RCR, "afni_util.py", MINOR, TYPE_ENHANCE,
+   "added covary and linear_fit; -listfunc takes -/stdin to read from stdin",
+   NULL
+ } ,
+
+ {  3,  Mar, 2015, RCR, "powell_int.c", MICRO, TYPE_BUG_FIX,
+   "multiple include directives got joined on one line",
+   NULL
+ } ,
+
+ {  3,  Mar, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
+   "added MIN_OUTLER as an option to -volreg_align_to",
+   "Also, udpated requirement data from Feb 9 to Nov 9."
+ } ,
+
+ {  2,  Mar, 2015, RCR, "afni_proc.py", MICRO, TYPE_BUG_FIX,
+   "fixed 3dTproject call for resting state on surface",
+   "Thanks to Tara (message board) for noting the problem."
+ } ,
+
+ { 27,  Feb, 2015, RCR, "afni_proc.py", MICRO, TYPE_NEW_OPT,
+   "added -regress_WMeL_corr option, which I forgot about last time",
+   NULL
+ } ,
+
+ { 27,  Feb, 2015, RCR, "@compute_gcor", MICRO, TYPE_NEW_OPT,
+   "added -corr_vol, to output a global correlation volume",
+   "Note that afni_proc.py does these steps by default."
+ } ,
+
+ { 24,  Feb, 2015, RCR, "neuro_deconvolve.py", MINOR, TYPE_ENHANCE,
+   "re-wrote method: new decon, upsample, multiple files, reconvolve",
+   "This is partially for evaluation of the decon/recon PPI steps."
+ } ,
+
  { 13,  Feb, 2015, RCR, "afni_proc.py", MICRO, TYPE_ENHANCE,
    "make WMeLocal for fast anaticor a float dataset",
    "Also, generate WMeL_corr as a diagnostic volume."

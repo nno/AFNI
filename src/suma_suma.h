@@ -51,6 +51,7 @@
    #include "suma_utils.h"
    #include "suma_string_manip.h"
    #include "suma_datasets.h"
+   #include "suma_help.h"
    #include "SUMA/SUMA_Macros.h"  
    #include "SUMA/SUMA_StringParse.h"
    #define SUMA_ENTRY ENTRY(FuncName)
@@ -60,7 +61,7 @@
    #define SUMA_mainENTRY mainENTRY(FuncName)
    
       
-   #define SUMA_free mcw_free
+   #define SUMA_free(a) mcw_free(a,__FILE__,__LINE__)
    #define SUMA_ifree(p)  { if ((p)) {SUMA_free((p));} (p)=NULL; }
    
    /* memory allocation section (SUMA_COMPILED-specific)*/

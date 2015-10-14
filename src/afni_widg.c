@@ -288,6 +288,8 @@ static char *AFNI_funcmode_bbox_label[2] =
    "(cubical) voxel dimensions for the\n"   \
    "data resampling"
 
+#define PVALUE_COLOR "#0088dd"
+
 /************* data for all widget create sub-functions ***************/
 
 /*** this is needed because of memory problems with the HP compiler ***/
@@ -321,6 +323,7 @@ static char jumpstring[128];                  /* 13 Jun 2014 */
 
 void AFNI_make_widgets( Three_D_View *im3d )
 {
+   char *s=NULL;
 
 ENTRY("AFNI_make_widgets") ;
 
@@ -358,8 +361,16 @@ STATUS("creating top_form") ;
             XmNinitialResourcesPersistent , False ,
          NULL ) ;
 
-   MCW_register_help( vwid->top_form , AFNI_tophelp ) ;
-
+   s = SUMA_append_string(AFNI_tophelp,
+         ":SPX:\n\n"
+         "   .. figure:: media/AfniCont.auto.jpg\n"
+         "      :name: media/AfniCont.auto.jpg\n"
+         "      :align: center\n\n"
+         "      :ref: `(link)<media/AfniCont.auto.jpg>`\n"
+         "\n"
+         ":SPX:") ;
+   SUMA_Register_Widget_Help( vwid->top_form, 0, "AfniCont",
+                              NULL, s); s = NULL; /* Do not free s */
    vwid->file_dialog = NULL ; /* Mar 1997 */
 
    /* create pixmaps, if desired */
@@ -393,6 +404,7 @@ STATUS("WANT_LOGO_BITMAP") ;
 
 #define RGB_TO_PIXMAP(data,pnam)                                           \
  do{ mri_fix_data_pointer( data , bim ) ;                                  \
+     STATUS("RGB_TO_PIXMAP") ;                                             \
      pnam = XCreatePixmap( im3d->dc->display ,                             \
                            RootWindowOfScreen(im3d->dc->screen) ,          \
                            lll_width , lll_height , im3d->dc->planes ) ;   \
@@ -527,6 +539,7 @@ STATUS("WANT_AFNI_BITMAP") ;
                 afni16_pixmap[num_entry-1] = XCreatePixmap( im3d->dc->display ,
                                                  RootWindowOfScreen(im3d->dc->screen) ,
                                                  bim->nx , bim->ny , im3d->dc->planes ) ;
+                STATUS("XPutImage(background pixmap [LOGO16])") ;
                 XPutImage( im3d->dc->display , afni16_pixmap[num_entry-1] ,
                            im3d->dc->origGC , xim , 0,0 , 0,0 , bim->nx , bim->ny ) ;
                 MCW_kill_XImage( xim ) ;
@@ -551,6 +564,7 @@ STATUS("WANT_AFNI_BITMAP") ;
         afni16_pixmap[num_entry-1] = XCreatePixmap( im3d->dc->display ,
                                       RootWindowOfScreen(im3d->dc->screen) ,
                                       bim->nx , bim->ny , im3d->dc->planes ) ;
+        STATUS("XPutImage(background pixmap [RAINBOW])") ;
         XPutImage( im3d->dc->display , afni16_pixmap[num_entry-1] ,
                    im3d->dc->origGC , xim , 0,0 , 0,0 , bim->nx , bim->ny ) ;
         MCW_kill_XImage( xim ) ;
@@ -805,7 +819,7 @@ STATUS("making imag->rowcol") ;
       XtSetSensitive( imag->pop_instacorr_pb , False ) ;
 
       imag->pop_icorrapair_pb =  /* Apr 2013: for 3dGroupInCorr */
-         XtVaCreateWidget(
+         XtVaCreateWidget(       /* note is not managed now */
             "dialog" , xmPushButtonWidgetClass , imag->popmenu ,
                LABEL_ARG("GIC: Apair Set") ,
                XmNmarginHeight , 0 ,
@@ -815,7 +829,7 @@ STATUS("making imag->rowcol") ;
       XtAddCallback( imag->pop_icorrapair_pb , XmNactivateCallback ,
                      AFNI_imag_pop_CB , im3d ) ;
 
-      imag->pop_icorramirr_pb =
+      imag->pop_icorramirr_pb =  /* note is not managed now */
          XtVaCreateWidget(
             "dialog" , xmPushButtonWidgetClass , imag->popmenu ,
                LABEL_ARG("GIC: Apair MirrorOFF") ,
@@ -3039,6 +3053,7 @@ STATUS("making func->rowcol") ;
    XtAddCallback( func->thr_pvalue_pb , XmNactivateCallback ,
                   AFNI_pvalue_CB , im3d ) ;
    MCW_register_hint( func->thr_pvalue_pb,"How to think about p-values" );
+   MCW_set_widget_bg( func->thr_pvalue_pb,PVALUE_COLOR,0) ;
 
    } /*---- end of thr_menu creation for top of threshold slider ----*/
 
@@ -5094,6 +5109,20 @@ STATUS("making dmode->rowcol") ;
    /*----- rowcol to hold all program controls stuff -----*/
 
 STATUS("making prog->rowcol") ;
+   SUMA_Register_Widget_Help( prog->frame, 0, "AfniCont->ProgCont",
+                             "rowcol to hold all program controls stuff",
+                             "Here is where the help would go."
+":SPX:\n\n"
+"Although this image is in the string used by BHelp, it only seen "
+"by the Sphinx.\n\n"
+"   .. figure:: media/william-shakespeare.jpg\n"
+"      :align: center\n"
+"      :figwidth: 50%\n"
+"      :name: Bill\n"
+"      :target: http://www.poetryfoundation.org/bio/william-shakespeare\n"
+"\n"
+"      :ref:`Frequent contributor<Bill>`\n"
+":SPX:\n\n");
 
    prog->rowcol =
       XtVaCreateWidget(
@@ -5126,10 +5155,8 @@ STATUS("making prog->rowcol") ;
                  XmNalignment   , XmALIGNMENT_CENTER ,
                  XmNinitialResourcesPersistent , False ,
                NULL ) ;
-
          XtAddCallback( prog->clone_pb , XmNactivateCallback ,
                         AFNI_clone_controller_CB , im3d ) ;
-
          MCW_register_help( prog->clone_pb ,
                             "Use this to open\n"
                             "a new AFNI control\n"
@@ -5137,6 +5164,7 @@ STATUS("making prog->rowcol") ;
                           ) ;
          MCW_register_hint( prog->clone_pb ,
                             "Open a new AFNI controller window" ) ;
+         MCW_set_widget_bg( prog->clone_pb , "black" , 0 ) ;
       } else {
           prog->clone_pb = NULL ;
       }
@@ -5217,9 +5245,13 @@ STATUS("making prog->rowcol") ;
    /* check for -disable_done                21 Aug 2008 [rickr] */
    XtSetSensitive( prog->quit_pb, GLOBAL_argopt.disable_done == 0 ) ;
 
+   #if 0
    MCW_register_help( prog->quit_pb , AFNI_quit_help ) ;
    MCW_register_hint( prog->quit_pb , "Click twice to close window" ) ;
-
+   #else
+   SUMA_Register_Widget_Help(prog->quit_pb, 1, "AfniCont->ProgCont->done",
+                             "Click twice to close window", AFNI_quit_help);
+   #endif
    prog->quit_first = True ;  /* mark this button as not pressed yet */
 
    /*----- manage the managers -----*/
@@ -5707,6 +5739,7 @@ STATUS("making prog->rowcol") ;
             NULL ) ;
       XtAddCallback( prog->hidden_pvalue_pb , XmNactivateCallback ,
                      AFNI_pvalue_CB , im3d ) ;
+      MCW_set_widget_bg( prog->hidden_pvalue_pb,PVALUE_COLOR,0) ;
 
       /*----------*/
 
@@ -5720,6 +5753,8 @@ STATUS("making prog->rowcol") ;
             NULL ) ;
       XtAddCallback( prog->hidden_papers_pb , XmNactivateCallback ,
                      AFNI_papers_CB , im3d ) ;
+      MCW_set_widget_bg( prog->hidden_papers_pb,"#0044aa",0) ;
+      MCW_set_widget_fg( prog->hidden_papers_pb,"#ffff00") ;
 
       /*----------*/
 
@@ -5899,7 +5934,7 @@ ENTRY("new_AFNI_controller") ;
       XmAddWMProtocolCallback(
            im3d->vwid->top_shell ,
            XmInternAtom( dc->display , "WM_DELETE_WINDOW" , False ) ,
-           AFNI_quit_CB , im3d ) ;
+           AFNI_quit_CB , NULL ) ;
 
    if( MCW_isitmwm( im3d->vwid->top_shell ) )
       XtVaSetValues( im3d->vwid->top_shell ,
@@ -6377,7 +6412,7 @@ void AFNI_controller_clonify(void)
 
 ENTRY("AFNI_controller_clonify") ;
 
-   if( MAX_CONTROLLERS == 1 ) EXRETURN ;
+   if( MAX_CONTROLLERS <= 1 ) EXRETURN ;
 
    clone_on = (Boolean)( AFNI_count_controllers() < MAX_CONTROLLERS ) ;
 
@@ -6979,6 +7014,7 @@ ENTRY("AFNI_misc_button") ;
    XtAddCallback( dmode->misc_pvalue_pb , XmNactivateCallback ,
                   AFNI_pvalue_CB , im3d ) ;
    MCW_register_hint( dmode->misc_pvalue_pb,"How to think about p-values" );
+   MCW_set_widget_bg( dmode->misc_pvalue_pb,PVALUE_COLOR,0) ;
 
    dmode->misc_license_pb =
          XtVaCreateManagedWidget(

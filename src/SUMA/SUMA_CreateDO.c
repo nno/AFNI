@@ -842,7 +842,9 @@ SUMA_DO_Types SUMA_Guess_DO_Type(char *s)
    } else if (strstr(sbuf,"#mask")) {
       dotp = MASK_type;
    } else if (strstr(sbuf,"#suma_dset")) { /* this case should not happen */
-      dotp = SDSET_type;
+      dotp = ANY_DSET_type;
+   } else if (strstr(sbuf,"#suma_md_dset")){/*this case also should not happen*/
+      dotp = MD_DSET_type;
    } else if (strstr(sbuf,"nido_head")) {
       dotp = NIDO_type;
    } else if (strstr(sbuf,"<") || strstr(sbuf,">")) {
@@ -3935,6 +3937,83 @@ float *SUMA_TDO_XYZ_Range(SUMA_TractDO *tdo, float *here)
    SUMA_RETURN(here);
 }
 
+float *SUMA_SDO_XYZ_Range(SUMA_SurfaceObject *cso, float *here) 
+{
+   static char FuncName[]={"SUMA_SDO_XYZ_Range"};
+   static int icall=0;
+   static float fv[10][6];
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!here) {
+      ++icall; if (icall > 9) icall = 0;
+      here = (float *)(&fv[icall]);
+   }
+   here[0] = here[2] = here[4] =  -20;
+   here[1] = here[3] = here[5] =   20;
+   
+   if (!cso) SUMA_RETURN(here);
+   
+   here[0] = cso->MinDims[0]; here[1] = cso->MaxDims[0]; 
+   here[2] = cso->MinDims[1]; here[3] = cso->MaxDims[1]; 
+   here[4] = cso->MinDims[2]; here[5] = cso->MaxDims[2];
+
+   
+   SUMA_RETURN(here);
+}
+
+float *SUMA_CIFTI_DO_XYZ_Range(SUMA_CIFTI_DO *CO, float *here) 
+{
+   static char FuncName[]={"SUMA_CIFTI_DO_XYZ_Range"};
+   static int icall=0;
+   static float fv[10][6];
+   int k, j;
+   float *xyzr, def[6] = {-20, 20, -20, 20, -20, 20};
+   SUMA_ALL_DO *asdo=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!here) {
+      ++icall; if (icall > 9) icall = 0;
+      here = (float *)(&fv[icall]);
+   }
+   here[0] = here[2] = here[4] =  -20;
+   here[1] = here[3] = here[5] =   20;
+   
+   if (!CO) SUMA_RETURN(here);
+   
+   for (k = 0; k < CO->N_subdoms; ++k) {
+      asdo = SUMA_CIFTI_subdom_ado(CO,k);
+      switch (asdo->do_type) {
+	 case SO_type:
+	    xyzr = SUMA_SDO_XYZ_Range((SUMA_SurfaceObject *)asdo,NULL);
+	    break;
+	 case VO_type: 
+      	    xyzr = SUMA_VO_XYZ_Range((SUMA_VolumeObject *)asdo,NULL);
+	    break;
+	 default:
+	    xyzr = def;
+	    SUMA_S_Warn("Not ready for %d in CIFTI", asdo->do_type);
+	    break;
+      }
+      if (k==0) {
+         for (j=0; j<6; ++j) {
+            here[j] = xyzr[j];
+         }
+      } else {
+         for (j=0; j<3; ++j) {
+            if (xyzr[2*j  ] < here[2*j  ])  here[2*j  ] = xyzr[2*j];
+            if (xyzr[2*j+1] > here[2*j+1])  here[2*j+1] = xyzr[2*j+1];
+         }
+      }
+   }
+
+   
+   SUMA_RETURN(here);
+}
+
 float *SUMA_VO_XYZ_Range(SUMA_VolumeObject *VO, float *here) 
 {
    static char FuncName[]={"SUMA_VO_XYZ_Range"};
@@ -4108,6 +4187,31 @@ float *SUMA_ADO_Center(SUMA_ALL_DO *ado, float *here)
             SUMA_RETURN(here);
          }
          break; }
+      case CDOM_type: {
+      	 float there[3] = {0,0,0};
+	 int k, i;
+	 SUMA_CIFTI_DO *CO=(SUMA_CIFTI_DO*)ado;
+	 SUMA_ALL_DO *asdo=NULL;
+	 for (k=0; k<CO->N_subdoms; ++k) {
+            asdo = SUMA_CIFTI_subdom_ado(CO,k);
+	    switch(asdo->do_type) {
+	       case VO_type:
+	       case SO_type:
+	          SUMA_ADO_Center(asdo, there);
+	          for (i=0; i<3;++i) here[i] += there[i];
+		  break;
+	       case CDOM_type:
+	          SUMA_S_Err("This should not happen. "
+		     	     "If it does, consider recursion problems");
+		  break;
+	       default:
+	          SUMA_S_Err("No support for subtype %d", 
+		     	     asdo->do_type);
+		  break;
+	    }
+	 }
+	 for (i=0; i<3;++i) here[i] /= ((float)CO->N_subdoms);
+      	 break; }
       default:
          SUMA_S_Err("Not ready to return center for type %s", ADO_TNAME(ado));
          SUMA_RETURN(here);
@@ -4214,6 +4318,10 @@ float *SUMA_ADO_Range(SUMA_ALL_DO *ado, float *here)
             SUMA_RETURN(here);
          }
          break; }
+      case CDOM_type:
+      	 SUMA_CIFTI_DO_XYZ_Range((SUMA_CIFTI_DO*)ado, here);
+         SUMA_RETURN(here);
+	 break;
       default:
          SUMA_S_Err("Not ready to return center for type %s", ADO_TNAME(ado));
          SUMA_RETURN(here);
@@ -5152,19 +5260,7 @@ void SUMA_WorldAxisStandard (SUMA_Axis* Ax, SUMA_SurfaceViewer *sv)
          switch (SUMAg_DOv[Vis_IDs[i]].ObjectType) {
             case SO_type:
                cso = (SUMA_SurfaceObject *)SUMAg_DOv[Vis_IDs[i]].OP;
-               if (MinDims[0] > MaxDims[0]) {/* initialize */
-                  for (j=0; j<3; ++j) {
-                     MinDims[j] = cso->MinDims[j];
-                     MaxDims[j] = cso->MaxDims[j];
-                  }
-               } else {
-                  for (j=0; j<3; ++j) {
-                     if (cso->MinDims[j] < MinDims[j]) 
-                        MinDims[j] = cso->MinDims[j];
-                     if (cso->MaxDims[j] > MaxDims[j]) 
-                        MaxDims[j] = cso->MaxDims[j];
-                  }
-               }
+	       xyzr = SUMA_SDO_XYZ_Range(cso, NULL);
                break;
             case GRAPH_LINK_type:
                if(!(dset=SUMA_find_GLDO_Dset(
@@ -5175,67 +5271,38 @@ void SUMA_WorldAxisStandard (SUMA_Axis* Ax, SUMA_SurfaceViewer *sv)
             
                if (!SUMA_IS_REAL_VARIANT(iDO_variant(Vis_IDs[i]))) break;
                xyzr = SUMA_GDSET_XYZ_Range(dset, iDO_variant(Vis_IDs[i]), NULL);
-               if (MinDims[0] > MaxDims[0]) {/* initialize */
-                  for (j=0; j<3; ++j) {
-                     MinDims[j] = xyzr[2*j];
-                     MaxDims[j] = xyzr[2*j+1];
-                  }
-               } else {
-                  for (j=0; j<3; ++j) {
-                     if (xyzr[2*j] < MinDims[j])  MinDims[j] = xyzr[2*j];
-                     if (xyzr[2*j+1] > MaxDims[j]) MaxDims[j] = xyzr[2*j+1];
-                  }
-               }
                break;
             case TRACT_type: {
                SUMA_TractDO *tdo=(SUMA_TractDO *)SUMAg_DOv[Vis_IDs[i]].OP;
                xyzr = SUMA_TDO_XYZ_Range(tdo, NULL);
-               if (MinDims[0] > MaxDims[0]) {/* initialize */
-                  for (j=0; j<3; ++j) {
-                     MinDims[j] = xyzr[2*j];
-                     MaxDims[j] = xyzr[2*j+1];
-                  }
-               } else {
-                  for (j=0; j<3; ++j) {
-                     if (xyzr[2*j] < MinDims[j])  MinDims[j] = xyzr[2*j];
-                     if (xyzr[2*j+1] > MaxDims[j]) MaxDims[j] = xyzr[2*j+1];
-                  }
-               }
                break; }
             case MASK_type: {
                SUMA_MaskDO *mdo=(SUMA_MaskDO *)SUMAg_DOv[Vis_IDs[i]].OP;
                xyzr = SUMA_MDO_XYZ_Range(mdo, NULL);
-               if (MinDims[0] > MaxDims[0]) {/* initialize */
-                  for (j=0; j<3; ++j) {
-                     MinDims[j] = xyzr[2*j];
-                     MaxDims[j] = xyzr[2*j+1];
-                  }
-               } else {
-                  for (j=0; j<3; ++j) {
-                     if (xyzr[2*j] < MinDims[j])  MinDims[j] = xyzr[2*j];
-                     if (xyzr[2*j+1] > MaxDims[j]) MaxDims[j] = xyzr[2*j+1];
-                  }
-               }
                break; }
             case VO_type: {
                SUMA_VolumeObject *VO=
                   (SUMA_VolumeObject *)SUMAg_DOv[Vis_IDs[i]].OP;
                xyzr = SUMA_VO_XYZ_Range(VO, NULL);
-               if (MinDims[0] > MaxDims[0]) {/* initialize */
-                  for (j=0; j<3; ++j) {
-                     MinDims[j] = xyzr[2*j];
-                     MaxDims[j] = xyzr[2*j+1];
-                  }
-               } else {
-                  for (j=0; j<3; ++j) {
-                     if (xyzr[2*j] < MinDims[j])  MinDims[j] = xyzr[2*j];
-                     if (xyzr[2*j+1] > MaxDims[j]) MaxDims[j] = xyzr[2*j+1];
-                  }
-               }
                break; }
-            default:
+            case CDOM_type: {
+	       xyzr = SUMA_CIFTI_DO_XYZ_Range((
+	             	SUMA_CIFTI_DO*)SUMAg_DOv[Vis_IDs[i]].OP, NULL);
+	       break; }
+	    default:
                SUMA_LHv("Ignoring dims of %s\n", iDO_label(Vis_IDs[i]));
                break;
+         }
+	 if (MinDims[0] > MaxDims[0]) {/* initialize */
+            for (j=0; j<3; ++j) {
+               MinDims[j] = xyzr[2*j];
+               MaxDims[j] = xyzr[2*j+1];
+            }
+         } else {
+            for (j=0; j<3; ++j) {
+               if (xyzr[2*j] < MinDims[j])  MinDims[j] = xyzr[2*j];
+               if (xyzr[2*j+1] > MaxDims[j]) MaxDims[j] = xyzr[2*j+1];
+            }
          }
       }
       if (MinDims[0] > MaxDims[0]) {/* Bad trip */
@@ -6735,7 +6802,7 @@ SUMA_Boolean SUMA_DrawTractDO (SUMA_TractDO *TDO, SUMA_SurfaceViewer *sv)
    }
    
    if (!sv->DO_PickMode || (sv->DO_PickMode && !(MASK_MANIP_MODE(sv)))) {
-      /* Apply masking if not picking or picking while in mask moving mode */
+      /* Apply masking if not picking or picking while not in mask moving mode */
       SUMA_TractMasksIntersect(TDO, SUMA_GetMaskEvalExpr());
    }
    
@@ -7324,7 +7391,7 @@ int SUMA_Picked_DO_ID(SUMA_COLID_OFFSET_DATUM *codf)
    if (!codf) SUMA_RETURN(-1);
    
    switch (codf->ref_do_type) {
-      case SDSET_type:
+      case GDSET_type:
          #if 0
          if (!(PP = SUMA_FindDset_s(codf->ref_idcode_str, 
                                      SUMAg_CF->DsetList))) {
@@ -7341,6 +7408,10 @@ int SUMA_Picked_DO_ID(SUMA_COLID_OFFSET_DATUM *codf)
                                  SUMAg_DOv, SUMAg_N_DOv)) < 0) {
             SUMA_S_Err("Could not find reference GRAPH_LINK");
          }
+         SUMA_RETURN(ido);
+         break;
+      case CDOM_type:
+         SUMA_S_Err("Not ready for CIFTI yet");
          SUMA_RETURN(ido);
          break;
       case SO_type:
@@ -7392,13 +7463,33 @@ void *SUMA_Picked_reference_object(SUMA_COLID_OFFSET_DATUM *cod,
    
    if (!cod) SUMA_RETURN(PP);
    
-   if (cod->ref_do_type == SDSET_type) {
+   if (cod->ref_do_type == GDSET_type) {
       SUMA_S_Warn("Should not happen");
       if (!(PP = SUMA_FindDset_s(cod->ref_idcode_str, 
                                      SUMAg_CF->DsetList))) {
          SUMA_S_Err("Could not find reference dset");
       }
-      if (do_type) *do_type = SDSET_type;
+      if (do_type) *do_type = GDSET_type;
+   } else if (cod->ref_do_type == CDOM_type) {
+      SUMA_S_Warn("Not sure this is ready for this");
+      if (!(PP = (void *)SUMA_whichADOg(cod->ref_idcode_str))) {
+         SUMA_S_Err("Could not find reference DO");
+      }
+      if (do_type) *do_type = CDOM_type;
+   } else if (cod->ref_do_type == ANY_DSET_type) {
+      SUMA_S_Warn("Should not happen");
+      if (!(PP = SUMA_FindDset_s(cod->ref_idcode_str, 
+                                     SUMAg_CF->DsetList))) {
+         SUMA_S_Err("Could not find reference dset");
+      }
+      if (do_type) *do_type = ANY_DSET_type;
+   } else if (cod->ref_do_type == MD_DSET_type) {
+      SUMA_S_Warn("Should not happen either");
+      if (!(PP = SUMA_FindDset_s(cod->ref_idcode_str, 
+                                     SUMAg_CF->DsetList))) {
+         SUMA_S_Err("Could not find reference dset");
+      }
+      if (do_type) *do_type = MD_DSET_type;
    } else if (cod->ref_do_type == GRAPH_LINK_type) {
       PP = (void *)SUMA_whichADOg(cod->ref_idcode_str);
       if (do_type) *do_type = GRAPH_LINK_type;
@@ -7424,7 +7515,11 @@ void *SUMA_Picked_reference_object(SUMA_COLID_OFFSET_DATUM *cod,
             SUMA_ObjectTypeCode2ObjectTypeName(cod->ref_do_type));
       if ((PP = SUMA_FindDset_s(cod->ref_idcode_str, 
                                         SUMAg_CF->DsetList))) {
-         if (do_type) *do_type = SDSET_type;
+         if (do_type) {
+            if (SUMA_isGraphDset((SUMA_DSET *)PP)) *do_type = GDSET_type;
+            else if (SUMA_isMD_Dset((SUMA_DSET *)PP)) *do_type = MD_DSET_type  ;
+	    else *do_type = ANY_DSET_type;
+         }
       } else if ((PP = SUMA_findSOp_inDOv (cod->ref_idcode_str, 
                                                  SUMAg_DOv, SUMAg_N_DOv))){
          if (do_type) *do_type = SO_type;
@@ -7568,6 +7663,7 @@ char *SUMA_DO_state(SUMA_DO *DO)
    static char FuncName[]={"SUMA_DO_state"};   
    SUMA_SurfaceObject *SO;
    SUMA_GraphLinkDO *GLDO;
+   SUMA_VOL_SAUX *VSaux=NULL;
    static char gret[256]={"ANY_ANATOMICAL"};
    
    SUMA_ENTRY;
@@ -7589,7 +7685,13 @@ char *SUMA_DO_state(SUMA_DO *DO)
          }
          break;
       case VO_type:
-         sprintf(gret,"ANY_ANATOMICAL");
+         VSaux = SUMA_ADO_VSaux((SUMA_ALL_DO*)DO->OP);
+	 if (VSaux) {
+	    snprintf(gret, 255*sizeof(char), "%s", VSaux->State);
+	 } else {
+	    SUMA_S_Err("Volumes must now have states, defaulting to old style");
+	    sprintf(gret,"ANY_ANATOMICAL");
+	 }
          SUMA_RETURN(gret);
          break;
       case TRACT_type:
@@ -7598,6 +7700,10 @@ char *SUMA_DO_state(SUMA_DO *DO)
          break;
       case MASK_type:
          sprintf(gret,"ANY_ANATOMICAL");
+         SUMA_RETURN(gret);
+         break;
+      case CDOM_type:
+      	 sprintf(gret,"ANY_ANATOMICAL");
          SUMA_RETURN(gret);
          break;
       default: /* any group for now */
@@ -7626,7 +7732,7 @@ int  SUMA_is_iDO_AnatCorrect(int dov_id)
 
 int SUMA_isDO_AnatCorrect(SUMA_DO *DO) 
 {
-   static char FuncName[]={"SUMA_is_iDO_AnatCorrect"};   
+   static char FuncName[]={"SUMA_isDO_AnatCorrect"};   
    if (!DO) return(0);
    return(SUMA_ADO_is_AnatCorrect((SUMA_ALL_DO*)DO->OP));
 }
@@ -7653,6 +7759,7 @@ int SUMA_ADO_is_AnatCorrect(SUMA_ALL_DO *ado)
          break;
       case VO_type:
       case MASK_type:
+      case CDOM_type:
       case TRACT_type:
          SUMA_RETURN(1);
          break;
@@ -9003,7 +9110,7 @@ SUMA_Boolean SUMA_Load_Dumb_DO(SUMA_ALL_DO *ado, SUMA_DUMB_DO *DDO)
          
          DDO->err = 0;
          break; }
-      case SDSET_type: {
+      case GDSET_type: {
          SUMA_S_Err("Bad idea, no nodelist possible without variant");
          break; }
       case GRAPH_LINK_type:{
@@ -9012,6 +9119,14 @@ SUMA_Boolean SUMA_Load_Dumb_DO(SUMA_ALL_DO *ado, SUMA_DUMB_DO *DDO)
                               SUMA_find_GLDO_Dset((SUMA_GraphLinkDO *)ado), 
                               &(DDO->N_Node), 0, &(DDO->NodeIndex),
                               SUMA_ADO_variant(ado));
+         DDO->AvgLe = 4;
+         DDO->err = 0;
+         break; }
+      case CDOM_type: {
+         DDO->idcode_str = SUMA_ADO_idcode(ado);
+         DDO->NodeList = SUMA_CDOM_NodeList(
+                              (SUMA_CIFTI_DO*)ado, 
+                              &(DDO->N_Node), 0, &(DDO->NodeIndex));
          DDO->AvgLe = 4;
          DDO->err = 0;
          break; }
@@ -9106,8 +9221,90 @@ SUMA_Boolean SUMA_AddDsetSaux(SUMA_DSET *dset)
       }
       
       SUMA_DrawDO_UL_FullMonty(GSaux->DisplayUpdates);
-   }    
+   } 
    
+   
+   SUMA_RETURN(YUP);  
+}
+
+/* This function will need to be maintained should we end up
+sticking with CIFTI_DO as a full fledged DO, rather than 
+a DO made up of a bunch of elementary DOs much like the
+CIFTI dataset. In the current incarnation, a CIFTI DO will
+not have its own controller for instance. */
+SUMA_Boolean SUMA_AddCIFTISaux(SUMA_CIFTI_DO *cdo)
+{
+   static char FuncName[]={"SUMA_AddCIFTISaux"};
+   SUMA_CIFTI_SAUX *CSaux;
+   int j;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!cdo) {
+      SUMA_S_Err("NULL input");
+      SUMA_RETURN(NOPE);
+   }
+   
+   if (cdo->Saux) {
+      CSaux = (SUMA_CIFTI_SAUX *)cdo->Saux;
+      /* empty old updates list */
+      SUMA_DrawDO_UL_EmptyList(CSaux->DisplayUpdates, NULL);
+
+      if (CSaux->Overlays) {
+         SUMA_S_Warn("Have overlay already, leaving them.");
+      } else {
+         CSaux->Overlays = 
+         (SUMA_OVERLAYS **)
+            SUMA_malloc(sizeof(SUMA_OVERLAYS *) * SUMA_MAX_OVERLAYS);
+         for (j=0; j < SUMA_MAX_OVERLAYS; ++j) {
+            CSaux->Overlays[j] = NULL;
+         }
+         CSaux->N_Overlays = 0;
+      }
+
+      if (CSaux->DOCont) {
+         SUMA_S_Warn("Have controller already. Keep it.");
+      } else {
+         CSaux->DOCont = 
+         SUMA_CreateSurfContStruct(SUMA_ADO_idcode((SUMA_ALL_DO *)cdo), 
+                                   CDOM_type);
+      }
+      
+      if (!CSaux->PR) {
+         CSaux->PR = SUMA_New_Pick_Result(NULL);
+      }
+      SUMA_ifree(CSaux->Center);
+      SUMA_ifree(CSaux->Range);
+   } else {
+      cdo->FreeSaux = SUMA_Free_CSaux;
+      cdo->Saux = (void *)SUMA_calloc(1,sizeof(SUMA_CIFTI_SAUX));
+
+      CSaux = (SUMA_CIFTI_SAUX *)cdo->Saux;
+      CSaux->DisplayUpdates = (DList *)SUMA_malloc(sizeof(DList));
+      dlist_init(CSaux->DisplayUpdates, SUMA_Free_Saux_DisplayUpdates_datum);
+
+      CSaux->Overlays = 
+         (SUMA_OVERLAYS **)
+            SUMA_malloc(sizeof(SUMA_OVERLAYS *) * SUMA_MAX_OVERLAYS);
+      for (j=0; j < SUMA_MAX_OVERLAYS; ++j) {
+         CSaux->Overlays[j] = NULL;
+      }
+      CSaux->N_Overlays = 0;
+      CSaux->DOCont = 
+         SUMA_CreateSurfContStruct(SUMA_ADO_idcode((SUMA_ALL_DO *)cdo), 
+                                   CDOM_type);
+      CSaux->PR = SUMA_New_Pick_Result(NULL);
+      
+      SUMA_ifree(CSaux->Center);
+      SUMA_ifree(CSaux->Range);
+   }
+
+   SUMA_LH("CSaux %p %p %p", CSaux->Overlays, CSaux->PR, CSaux->DOCont);
+   
+   /* Do we need this or its ilk for CIFTI? */
+   SUMA_LH("Try without me...");
+      SUMA_DrawDO_UL_FullMonty(CSaux->DisplayUpdates);
    
    SUMA_RETURN(YUP);  
 }
@@ -9189,7 +9386,9 @@ SUMA_Boolean SUMA_AddTractSaux(SUMA_TractDO *tdo)
 
    SUMA_LH("TSaux %p %p %p", TSaux->Overlays, TSaux->PR, TSaux->DOCont);
    
-   SUMA_DrawDO_UL_FullMonty(TSaux->DisplayUpdates);
+   #if 0 /* not used for tracts */
+      SUMA_DrawDO_UL_FullMonty(TSaux->DisplayUpdates);
+   #endif
    
    SUMA_RETURN(YUP);  
 }
@@ -9315,8 +9514,10 @@ SUMA_Boolean SUMA_AddMaskSaux(SUMA_MaskDO *mdo)
 
    SUMA_LH("MSaux %p %p %p", MSaux->Overlays, MSaux->PR, MSaux->DOCont);
    
+   #if 0 /* Not used for tracts */
    if (!MDO_IS_SHADOW(mdo))
       SUMA_DrawDO_UL_FullMonty(MSaux->DisplayUpdates);
+   #endif
    
    SUMA_RETURN(YUP);  
 }
@@ -9374,6 +9575,9 @@ SUMA_Boolean SUMA_AddVolSaux(SUMA_VolumeObject *vo)
       if (!VSaux->vrslcl) {
          dlist_init(VSaux->vrslcl, SUMA_Free_SliceListDatum);
       }
+      if (!VSaux->State) {
+      	 VSaux->State = SUMA_copy_string("ANY_ANATOMICAL");
+      }
    } else {
       SUMA_LH("Fresh");
       vo->FreeSaux = SUMA_Free_VSaux;
@@ -9389,6 +9593,8 @@ SUMA_Boolean SUMA_AddVolSaux(SUMA_VolumeObject *vo)
       VSaux->vrslcl = (DList *)SUMA_malloc(sizeof(DList));
       dlist_init(VSaux->vrslcl, SUMA_Free_SliceListDatum); 
 
+      VSaux->State = SUMA_copy_string("ANY_ANATOMICAL");
+      
       VSaux->Overlays = 
          (SUMA_OVERLAYS **)
             SUMA_malloc(sizeof(SUMA_OVERLAYS *) * SUMA_MAX_OVERLAYS);
@@ -9405,8 +9611,9 @@ SUMA_Boolean SUMA_AddVolSaux(SUMA_VolumeObject *vo)
       VSaux->TransMode = SATM_ViewerDefault;
    }
 
-   
+   #if 0 /* not in use for Volumes yet */
    SUMA_DrawDO_UL_FullMonty(VSaux->DisplayUpdates);
+   #endif
    
    SUMA_RETURN(YUP);  
 }
@@ -9604,6 +9811,42 @@ void SUMA_Free_TSaux(void *vSaux)
    return; 
 }
 
+void SUMA_Free_CSaux(void *vSaux)
+{
+   static char FuncName[]={"SUMA_Free_CSaux"};
+   int i;
+   SUMA_CIFTI_SAUX *Saux;
+   
+   if (!vSaux) return;
+   Saux = (SUMA_CIFTI_SAUX *)vSaux;
+   
+   if (Saux->DisplayUpdates) {
+      dlist_destroy(Saux->DisplayUpdates);
+      SUMA_free(Saux->DisplayUpdates);
+   }
+   
+   if (Saux->Overlays) {
+      for (i=0; i<Saux->N_Overlays; ++i) {
+         SUMA_FreeOverlayPointer(Saux->Overlays[i]);
+      }
+      SUMA_ifree(Saux->Overlays);
+      Saux->N_Overlays = 0;
+   }
+   
+   SUMA_ifree(Saux->isColored);
+   
+   if (Saux->DOCont) SUMA_FreeSurfContStruct(Saux->DOCont);
+   Saux->DOCont=NULL;
+   
+   if (Saux->PR) Saux->PR = SUMA_free_PickResult(Saux->PR);
+   
+   SUMA_ifree(Saux->Center);
+   SUMA_ifree(Saux->Range);
+
+   SUMA_ifree(Saux);
+   return; 
+}
+
 void SUMA_Free_MSaux(void *vSaux)
 {
    static char FuncName[]={"SUMA_Free_MSaux"};
@@ -9690,6 +9933,8 @@ void SUMA_Free_VSaux(void *vSaux)
       dlist_destroy(Saux->slcl);
       SUMA_free(Saux->slcl);
    }
+   
+   SUMA_ifree(Saux->State);
    
    if (Saux->vrslcl) {
       dlist_destroy(Saux->vrslcl);
@@ -10057,6 +10302,30 @@ float *SUMA_GDSET_NodeList(SUMA_DSET *dset, int *N_Node, int recompute,
    SUMA_RETURN(NULL);
 }
 
+/* Return a pointer copy of a CIFTI dset's domain node coordinates,
+   *ind is a copy of the node index pointer 
+*/
+float *SUMA_CDOM_NodeList(SUMA_CIFTI_DO *CO, int *N_Node, int recompute, 
+                           int **ind) 
+{
+   static char FuncName[]={"SUMA_CDOM_NodeList"};
+   NI_element *nel=NULL, *nelxyz=NULL;
+   float *NodeList=NULL, *X=NULL, *Y=NULL, *Z=NULL;
+   int ii, ii3, iicoord;
+    char *cs = NULL;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   SUMA_S_Err("Not ready yet. Whos is calling? What would this be?");
+   /* Now how should this be implemented? One vector for all? 
+      If so, then what for? Decide in context of application.
+      Consider SUMA_GDSET_NodeList, */
+      
+     
+   SUMA_RETURN(NULL);
+}
+
 void SUMA_free_colid_offset_datum (void *vv) 
 {
    SUMA_COLID_OFFSET_DATUM *cod = (SUMA_COLID_OFFSET_DATUM *)vv;
@@ -10412,10 +10681,16 @@ GLubyte *SUMA_DO_get_pick_colid(SUMA_ALL_DO *DO, char *idcode_str,
             SUMA_RETURN(colv); 
          }
          break; }
-      case SDSET_type: {
+      case ANY_DSET_type:
+      case MD_DSET_type:
+      case GDSET_type: {
          SUMA_S_Warn("I do not intend this picking type for dsets. Go away");
          SUMA_RETURN(NULL);
          break; }
+      case CDOM_type:
+         SUMA_S_Err("Have not implemented picking on this composite domain yet");
+         SUMA_RETURN(NULL);
+         break;
       default:
          SUMA_S_Errv("Not supported for types %d (%s)\n", 
                      DO->do_type,
@@ -10950,7 +11225,7 @@ SUMA_Boolean SUMA_DrawGSegmentDO (SUMA_GRAPH_SAUX *GSaux, SUMA_SurfaceViewer *sv
       fprintf(stderr,"Error %s: NULL pointer.\n", FuncName);
       SUMA_RETURN (NOPE);
    }
-   
+      
    gl_dt = glIsEnabled(GL_DEPTH_TEST);
    
    if (stipsel) {
@@ -11123,9 +11398,10 @@ SUMA_Boolean SUMA_DrawGSegmentDO (SUMA_GRAPH_SAUX *GSaux, SUMA_SurfaceViewer *sv
       goto BOTTOM;
    }
    
-   SUMA_LHv("Stippling %d (XXX=%d, Val=%d, 01=%d) wbox=%d\n",
+   SUMA_LHv("Stippling %d (XXX=%d, Val=%d, 01=%d) wbox=%d\n, IgnoreSelection=%d",
                 curcol->EdgeStip, SW_SurfCont_DsetEdgeStipXXX, 
-                SW_SurfCont_DsetEdgeStipVal, SW_SurfCont_DsetEdgeStip1, wbox);
+                SW_SurfCont_DsetEdgeStipVal, SW_SurfCont_DsetEdgeStip1, wbox,
+                GSaux->IgnoreSelection);
    if (curcol->EdgeStip == SW_SurfCont_DsetEdgeStipXXX ||
        curcol->EdgeStip < 0) {
       SDO->Stipple = SUMA_SOLID_LINE;
@@ -16805,13 +17081,848 @@ SUMA_Boolean SUMA_ScreenPlane_WorldSpace(SUMA_SurfaceViewer *sv, float *cen,
    SUMA_RETURN(YUP);
 }
 
+/*!< Given a byte mask of nodes, return a mask of the facesets involved */
+int SUMA_NodeMask_to_FaceMask(SUMA_SurfaceObject *SO, byte *nodemask, 
+                              int N_nz_nodemask,
+                              int *triblock, byte **facemask, 
+                              int minhits)
+{
+   static char FuncName[]={"SUMA_NodeMask_to_FaceMask"};
+   byte *fm=NULL;
+   int N_fm=-1, i, j, i0, k;
+   SUMA_Boolean LocalHead = YUP;
+   
+   SUMA_ENTRY;
+   
+   if (!SO) {
+      SUMA_S_Err("NULL input");
+      SUMA_RETURN(-1);
+   }
+   if (triblock) triblock[0] = -1;
+   
+   if (!nodemask || N_nz_nodemask == 0) {
+      /* The whole thing */
+      if (triblock) {
+         triblock[0] = 0;
+         triblock[1] = SO->N_FaceSet-1;
+         SUMA_RETURN(SO->N_FaceSet);
+      } else if (facemask) {
+         if (!*facemask) {
+            if (!(*facemask = (byte *)SUMA_malloc(SO->N_FaceSet*sizeof(byte)))){
+               SUMA_S_Crit("Failed to allocate for %d bytes", SO->N_FaceSet);
+               SUMA_RETURN(-1);
+            }
+         }
+         memset(*facemask, 1, SO->N_FaceSet*sizeof(byte));
+         SUMA_RETURN(SO->N_FaceSet);
+      }  
+   } else if (nodemask) {
+      SUMA_LH("Nodemask based %d nodes to consider", SO->N_Node);   
+         if (!SO->MF) {
+            SUMA_S_Err("Need SO->MF for this one");
+            SUMA_RETURN(-1);
+         }
+         N_fm = 0;
+         if (!(fm = (byte *)SUMA_calloc(SO->N_FaceSet, sizeof(byte)))){
+            SUMA_S_Err("FAiled to allocate for %d bytes", SO->N_FaceSet);
+            SUMA_RETURN(-1);
+         }
+         for (i=0; i < SO->N_Node; ++i) {
+            if (nodemask[i]) {
+               for (j=0; j < SO->MF->N_Memb[i]; ++j) {
+                  ++ fm[SO->MF->NodeMemberOfFaceSet[i][j]];
+               }
+            }
+         }
+         i0 = -1;
+         for (i=0; i < SO->N_FaceSet; ++i) {
+            if (fm[i] < minhits) fm[i] = 0;
+            else {
+               if (i0 < 0) i0 = i;
+               fm[i] = 1;
+               ++N_fm;
+            }
+         }
+         
+         if (triblock) {
+            /* is this one whole block? */
+            for (k=0,i=i0; i<SO->N_FaceSet; ++i) {
+               if (!fm[i]) break;
+               else ++k;
+            }
+            if (k == N_fm) {
+               triblock[0] = i0;
+               triblock[1] = i0+N_fm-1;
+               SUMA_ifree(fm); /* no need for mask */
+            }
+         }
+         
+         if (facemask) {
+            if (*facemask) SUMA_free(*facemask);
+            *facemask = fm; fm = NULL;
+         }
+         
+         SUMA_ifree(fm);
+   }
+   
+   SUMA_LH("Returning with %d triangles, *facemask=%p, triblock %p[%d %d]", 
+          N_fm, facemask? *facemask:NULL, triblock, 
+            triblock ? triblock[0]:-1, triblock ? triblock[1]:-1);
+      
+   SUMA_RETURN(N_fm);
+} 
+
+int SUMA_Prep_SO_DrawPatches(SUMA_SurfaceObject *SO, SUMA_SurfaceViewer *sv)
+{
+   static char FuncName[]={"SUMA_Prep_SO_DrawPatches"};
+   int N_patches = -1;
+   byte *fm=NULL;
+   int N_fm = -1, tb[2];
+   SUMA_DrawPatch *ptch=NULL;
+   SUMA_Boolean LocalHead = YUP;
+      
+   SUMA_ENTRY;
+   
+   if (!SO || !SO->DW) {
+      SUMA_S_Err("NULL input");
+      SUMA_RETURN(-1);
+   }
+   
+   if (!SO->DW->DrwPtchs) {
+      SO->DW->DrwPtchs = (DList *)SUMA_calloc(1,sizeof(DList));
+      dlist_init(SO->DW->DrwPtchs, SUMA_Free_DrawPatchDatum);
+   }
+   SUMA_LH("Init: %d, %d, %d, %p\n", 
+      SO->DW->PatchGenID, SO->DW->PatchRegenID, 
+      dlist_size(SO->DW->DrwPtchs), SO->DW->nodemask);
+   if (SO->DW->PatchGenID != SO->DW->PatchRegenID || 
+       dlist_size(SO->DW->DrwPtchs) == 0) {
+       dlist_empty(SO->DW->DrwPtchs);
+      SUMA_LH("Regenerating patches");
+      if (!SO->DW->nodemask || SO->DW->N_nz_nodemask == 0) {
+         SUMA_LH("Default - whole surface");
+         #if 1
+         if (!(ptch = SUMA_New_DrawPatchDatum(SO, NULL, 0, NULL))) {
+            SUMA_S_Err("Nullination, skipping");
+         } else {
+            dlist_ins_next(SO->DW->DrwPtchs, dlist_head(SO->DW->DrwPtchs), ptch);
+         }
+         #else
+         SUMA_LH( "Here is an example of how you would display in two chunks\n"
+                  "The setting of tb (or facemask) of course should be done\n"
+                  "in SUMA_NodeMask_to_FaceMask, and not here...");
+         SUMA_S_Warn("TEST Fix Me, Fix ME!"); tb[0]=0; tb[1]=1000;
+         if (!(ptch = SUMA_New_DrawPatchDatum(SO, tb, 0, NULL))) {
+            SUMA_S_Err("Nullination, skipping");
+         } else {
+            dlist_ins_next(SO->DW->DrwPtchs, dlist_head(SO->DW->DrwPtchs), ptch);
+         }
+         SUMA_S_Warn("TEST Fix Me, Fix ME!"); tb[0]=10000; tb[1]=15000;
+         if (!(ptch = SUMA_New_DrawPatchDatum(SO, tb, 0, NULL))) {
+            SUMA_S_Err("Nullination, skipping");
+         } else {
+            dlist_ins_next(SO->DW->DrwPtchs, dlist_head(SO->DW->DrwPtchs), ptch);
+         }
+         #endif
+      } else {
+         if ((N_fm = SUMA_NodeMask_to_FaceMask(SO, SO->DW->nodemask, 
+                        SO->DW->N_nz_nodemask, tb, &fm, 1))<0){
+            SUMA_S_Err("Failed to change node mask to face mask");
+         } else {
+            SUMA_DrawPatch *ptch0=NULL, *ptch1=NULL;
+            SUMA_LH("Creating patch tb=[%d,%d], fm=%p\n",
+                     tb[0], tb[1], fm);
+            if (!(ptch = SUMA_New_DrawPatchDatum(SO, tb, N_fm, fm))) {
+                  SUMA_S_Err("Nullination 2, skipping");
+            } else {
+              dlist_ins_next(SO->DW->DrwPtchs, 
+                             dlist_head(SO->DW->DrwPtchs), ptch);
+            }
+            
+            /* Also draw complimentary patches, need an option 
+            for this too, naturally. I would need a mechanism
+            for an if (cmask) then ACTION
+                   else ALT_ACTION 
+            At the moment, only cmask is controllable, there 
+            is no way for the user to setup ACTION and ALT_ACTION
+            Those ACTIONS can be specified using the syntax of DriveSuma...
+            */
+            if (SUMA_ComplimentaryPatches(SO, tb, N_fm, fm, 
+                                      &ptch0, &ptch1)) {
+               if (ptch0) {
+                  /* toying with transp. and poly modes
+                     need controllers for all this.
+                     PolyMode overrides TransMode */
+                  if (SUMA_EnvVal("SUMA_TEMP_NODE_CMASK_EXPR_POLYMODE")) {
+                     ptch0->PolyMode = SRM_Line;
+                  } else {
+                     ptch0->TransMode = STM_12;
+                  }
+                  dlist_ins_next(SO->DW->DrwPtchs, 
+                              dlist_head(SO->DW->DrwPtchs), ptch0);
+               }
+               if (ptch1) {
+                  if (SUMA_EnvVal("SUMA_TEMP_NODE_CMASK_EXPR_POLYMODE")) {
+                     ptch1->PolyMode = SRM_Line;
+                  } else {
+                     ptch1->TransMode = STM_12;
+                  }
+                  dlist_ins_next(SO->DW->DrwPtchs, 
+                              dlist_head(SO->DW->DrwPtchs), ptch1);
+               }
+            }
+            SUMA_ifree(fm);/* dump fm */
+         }
+      }
+      SO->DW->PatchGenID = SO->DW->PatchRegenID;
+   }
+   
+   SUMA_LH("Going home");
+   SUMA_RETURN(dlist_size(SO->DW->DrwPtchs));
+}
+
+/*! Create a drawing patch for surface SO */
+SUMA_DrawPatch *SUMA_New_DrawPatchDatum(SUMA_SurfaceObject *SO, int *triblock,
+                                        int N_Faces, byte *facemask)
+{
+   static char FuncName[]={"SUMA_New_DrawPatchDatum"};
+   SUMA_DrawPatch *ptch=NULL;
+   int lb2[2], ii, i, pp, k;
+   SUMA_Boolean LocalHead = YUP;
+   
+   SUMA_ENTRY;
+   
+   if (!SO) {
+      SUMA_S_Err("NULL SO YO!");
+      SUMA_RETURN(NULL);
+   }
+   
+   if ((triblock && triblock[0] >=0) && facemask) { /* prioritize */
+      SUMA_LH("Using triblock, not facemask");
+   }
+   
+   if ( (!triblock && !facemask) ||
+        (triblock && triblock[0] == 0 && triblock[1] ==-1)){/* whole surface */
+      triblock = (int *)lb2;
+      triblock[0] = 0;
+      triblock[1] = SO->N_FaceSet-1;
+   }
+   
+   if (triblock && triblock[0]>=0) {
+      if (triblock[1]>=SO->N_FaceSet) {
+         SUMA_S_Err("triblock of [%d %d] outside of [%d %d]",
+                     triblock[0], triblock[1], 0, SO->N_FaceSet-1);
+         SUMA_RETURN(NULL);            
+      } 
+      if (triblock[0] > triblock[1]) {
+         SUMA_S_Err("triblock of [%d %d] uninterpretable",
+                     triblock[0], triblock[1]);
+         SUMA_RETURN(NULL);            
+      }
+   }
+   
+   ptch = (SUMA_DrawPatch *)SUMA_calloc(1, sizeof(SUMA_DrawPatch));
+   
+   if (triblock && triblock[0] >= 0) { /* the easy way */
+      SUMA_LH("Triblock %d %d", triblock[0], triblock[1]);
+      ptch->FreeFaceSetList = NOPE; /* pointer copy bro */
+      ptch->FaceSetList = SO->FaceSetList+triblock[0]*SO->FaceSetDim;
+      ptch->N_FaceSet = triblock[1]-triblock[0]+1;
+   } else {
+      SUMA_LH("facemask of %d triangles in mask", N_Faces);
+      ptch->FreeFaceSetList = YUP;
+      if (!(ptch->FaceSetList = (int *)SUMA_calloc(N_Faces*SO->FaceSetDim, 
+                                                   sizeof(int)))) {
+         SUMA_S_Crit("Hippocampus full, no space for %d ints", N_Faces);
+         SUMA_Free_DrawPatchDatum((void *)ptch);
+         SUMA_RETURN(NULL);
+      }
+      ptch->N_FaceSet = N_Faces;
+      pp = 0;
+      for (i=0; i<SO->N_FaceSet; ++i) {
+         if (IN_MASK(facemask,i)) {
+            ii = i*SO->FaceSetDim;
+            for (k=0; k<SO->FaceSetDim; ++k) {
+               ptch->FaceSetList[pp++] = SO->FaceSetList[ii++];
+            }
+         }
+      }
+      /* sanity check */
+      if (N_Faces != pp/SO->FaceSetDim) {
+         SUMA_S_Err( "The probability of seeing this assuming "
+                     "you're sane is p<1e-8");
+         SUMA_Free_DrawPatchDatum((void *)ptch);
+         SUMA_RETURN(NULL);
+      }
+   }
+   
+   ptch->Show = SO->Show;
+   ptch->PolyMode = SO->PolyMode;
+   ptch->TransMode = SO->TransMode;
+   
+   SUMA_RETURN(ptch);
+}
+
+/*!< Complimentary patches */
+int SUMA_ComplimentaryPatches(SUMA_SurfaceObject *SO, int *triblock, 
+                              int N_Faces, byte *facemask, 
+                              SUMA_DrawPatch **ptch0, 
+                              SUMA_DrawPatch **ptch1) 
+{
+   static char FuncName[]={"SUMA_ComplimentaryPatches"};
+   int N_patches=0;
+   int lb2[2], ii, i, pp, k;
+   SUMA_Boolean LocalHead = YUP;
+   
+   SUMA_ENTRY;
+   
+   if (!SO) {
+      SUMA_S_Err("NULL SO YO!");
+      SUMA_RETURN(-1);
+   }
+   
+   if ((triblock && triblock[0] >=0) && facemask) { /* prioritize */
+      SUMA_LH("Using triblock, not facemask");
+   }
+   
+   if (!ptch0 || !ptch1 || *ptch0 || *ptch1) {
+      SUMA_S_Err("Init error");
+      SUMA_RETURN(-1);
+   }
+   
+   if ( (!triblock && !facemask) ||
+        (triblock && triblock[0] == 0 && triblock[1] == -1)){/* whole surface */
+      triblock = (int *)lb2;
+      triblock[0] = 0;
+      triblock[1] = SO->N_FaceSet-1;
+   }
+   if (triblock && triblock[0] >= 0) {
+      if (triblock[1]>=SO->N_FaceSet) {
+         SUMA_S_Err("triblock of [%d %d] outside of [%d %d]",
+                     triblock[0], triblock[1], 0, SO->N_FaceSet-1);
+         SUMA_RETURN(-1);
+      }        
+      if (triblock[0] > triblock[1]) {
+         SUMA_S_Err("triblock of [%d %d] uninterpretable",
+                     triblock[0], triblock[1]);
+         SUMA_RETURN(-1);            
+      }
+   }
+   
+   
+   if (triblock && triblock[0] >= 0) { /* first part */
+      SUMA_LH("Triblock [%d %d]", triblock[0], triblock[1]);
+      if (triblock[0] > 0) {
+         *ptch0 = (SUMA_DrawPatch *)SUMA_calloc(1, sizeof(SUMA_DrawPatch));
+         (*ptch0)->FreeFaceSetList = NOPE; /* pointer copy bro */
+         (*ptch0)->FaceSetList = SO->FaceSetList;
+         (*ptch0)->N_FaceSet = triblock[0];
+         
+         if (triblock[1] < SO->N_FaceSet -1) {
+            *ptch1 = (SUMA_DrawPatch *)SUMA_calloc(1, sizeof(SUMA_DrawPatch));
+            (*ptch1)->FreeFaceSetList = NOPE; /* pointer copy bro */
+            (*ptch1)->FaceSetList = 
+               SO->FaceSetList+(triblock[1]+1)*SO->FaceSetDim;
+            (*ptch1)->N_FaceSet = SO->N_FaceSet - (triblock[1]+1);
+         }
+      } else if (triblock[0] == 0) {
+         *ptch0 = (SUMA_DrawPatch *)SUMA_calloc(1, sizeof(SUMA_DrawPatch));
+         (*ptch0)->FreeFaceSetList = NOPE; /* pointer copy bro */
+         (*ptch0)->FaceSetList = SO->FaceSetList+(triblock[1]+1)*SO->FaceSetDim;
+         (*ptch0)->N_FaceSet = SO->N_FaceSet - (triblock[1]+1);
+      }
+   } else {
+      SUMA_LH("facemask of %d triangles to be drawn", SO->N_FaceSet-N_Faces);
+      *ptch0 = (SUMA_DrawPatch *)SUMA_calloc(1, sizeof(SUMA_DrawPatch));
+      (*ptch0)->FreeFaceSetList = YUP;
+      if (!((*ptch0)->FaceSetList =  (int *)
+            SUMA_calloc((SO->N_FaceSet-N_Faces)*SO->FaceSetDim, sizeof(int)))) {
+         SUMA_S_Crit("Hippocampus full, no space for %d ints", 
+                     SO->N_FaceSet-N_Faces);
+         SUMA_Free_DrawPatchDatum((void *)(*ptch0));
+         SUMA_RETURN(-1);
+      }
+      (*ptch0)->N_FaceSet = SO->N_FaceSet-N_Faces;
+      pp = 0;
+      for (i=0; i<SO->N_FaceSet; ++i) {
+         if (!IN_MASK(facemask,i)) {
+            ii = i*SO->FaceSetDim;
+            for (k=0; k<SO->FaceSetDim; ++k) {
+               (*ptch0)->FaceSetList[pp++] = SO->FaceSetList[ii++];
+            }
+         }
+      }
+      /* sanity check */
+      if ((*ptch0)->N_FaceSet != pp/SO->FaceSetDim) {
+         SUMA_S_Err( "The probability of seeing this assuming "
+                     "you're sane is p<1e-8");
+         SUMA_Free_DrawPatchDatum((void *)*ptch0);
+         SUMA_RETURN(-1);
+      }
+   }
+   
+SUMA_LH("3");
+   N_patches = 0;
+   if (*ptch0) {
+      N_patches = 1;
+      (*ptch0)->Show = SO->Show;
+      (*ptch0)->PolyMode = SO->PolyMode;
+      (*ptch0)->TransMode = STM_8;
+   }
+   if (*ptch1) {
+      N_patches = 2;
+      (*ptch1)->Show = SO->Show;
+      (*ptch1)->PolyMode = SO->PolyMode;
+      (*ptch1)->TransMode = STM_8;
+   }
+   SUMA_RETURN(N_patches);
+}   
+           
+void SUMA_Free_DrawPatchDatum(void *data)
+{
+   static char FuncName[]={"SUMA_Free_DrawPatchDatum"};
+   SUMA_DrawPatch *ptch = (SUMA_DrawPatch *) data;
+   SUMA_ENTRY;
+   if (ptch) {
+      if (ptch->FreeFaceSetList) { SUMA_ifree(ptch->FaceSetList); }
+      SUMA_free(ptch);
+   }
+   SUMA_RETURNe;
+}
+
+/*! A new function for drawing surface with masking potential */
+void SUMA_DrawMesh_mask(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
+{  
+   static char FuncName[]={"SUMA_DrawMesh_mask"};
+   static GLfloat NoColor[] = {0.0, 0.0, 0.0, 0.0};
+   GLfloat *colp = NULL;
+   int i, ii, ND, id, ip, NP, PolyMode, sz[2]={0, 0}, 
+        N_patches =0;
+   SUMA_DRAWN_ROI *DrawnROI = NULL;
+   static GLuint texName; 
+   GLfloat rotationMatrix[4][4];
+   GLenum Face=GL_FRONT;
+   GLint *glar_FaceSetList=NULL;
+   NI_element *texnel=NULL;
+   DList *st=NULL;
+   SUMA_TRANS_MODES trmode;
+   SUMA_DrawPatch *ptch=NULL;
+   DListElmt *el=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+      
+   SUMA_ENTRY;
+   
+   SUMA_LH("Entered");
+   
+   if (LocalHead) {
+      SUMA_EnablingRecord SER;
+      SUMA_RecordEnablingState(&SER, SurfObj->Label);
+      SUMA_DiffEnablingState(&SER, NULL, NULL, NULL);
+   }
+   
+   if ( (N_patches = SUMA_Prep_SO_DrawPatches(SurfObj, sv)) < 0 ) {
+      SUMA_S_Err("Failed to prep SO patches");
+      SUMA_RETURNe; 
+   }
+   
+   SUMA_LH("Have %d patches", N_patches);
+   
+   if ( N_patches == 0 ) {
+      SUMA_LH("Nothing to do, returning");
+      SUMA_RETURNe; 
+   }
+   
+   if (!SurfObj->DW->DrwPtchs) {
+      SUMA_S_Err("Should not have null DrwPtchs at this point");
+      SUMA_RETURNe; 
+   }
+   
+   if (sv->DO_PickMode) {
+      SUMA_LH("No need to DrawMesh in DO picking mode");
+      SUMA_RETURNe;
+   }
+   
+   SUMA_LH("Might need to swap coords from the VisX transformed data");
+   SUMA_VisX_Pointers4Display(SurfObj, 1);
+
+   do { /* begin for each patch */
+      if (!el) el = dlist_head(SurfObj->DW->DrwPtchs);
+      else el = dlist_next(el);
+      ptch = (SUMA_DrawPatch *)el->data;
+      glar_FaceSetList = (GLint *)ptch->FaceSetList;
+      if (  ptch->PolyMode == SRM_Hide || 
+            sv->PolyMode == SRM_Hide ||
+            ptch->TransMode == STM_16 ||
+            sv->TransMode == STM_16) {
+         SUMA_LH("Hiding surface"); 
+         continue; 
+      }
+
+      if (!SUMA_GLStateTrack( "new", &st, FuncName, NULL, NULL)) {
+         SUMA_S_Err("Failed to create tracking list");
+         SUMA_RETURNe; 
+      } 
+      /* check on rendering mode */
+      if (ptch->PolyMode != SRM_ViewerDefault) {
+        SUMA_LHv("Poly Mode %d\n", ptch->PolyMode);
+        /* not the default, do the deed */
+        #if 0 /* Need to start using MACRO below, but it is not working yet */
+        SUMA_SET_GL_RENDER_MODE_TRACK(ptch->PolyMode, st); 
+        #else
+        SUMA_SET_GL_RENDER_MODE(ptch->PolyMode);
+        #endif
+      }
+      
+      SUMA_LH("TransMode = %d, N_FaceSet = %d", 
+               ptch->TransMode, ptch->N_FaceSet);
+      
+      /* check on rendering mode */
+      if (ptch->TransMode == STM_ViewerDefault) {
+         trmode = sv->TransMode;
+      } else if (ptch->TransMode > STM_0) {
+         trmode = ptch->TransMode;
+      } else trmode = STM_0;
+
+      if (trmode != STM_0) {
+        /* not the default, do the deed */
+        SUMA_LHv("Trans Mode %d\n", trmode);
+        SUMA_SET_GL_TRANS_MODE(trmode, st, SO_type); 
+      }
+
+      /* any texture for this surface? */
+      texnel = SUMA_SO_NIDO_Node_Texture ( SurfObj, SUMAg_DOv, SUMAg_N_DOv, sv );
+      if (texnel) {
+         SUMA_LH(  "Creating texture, see init pp 415 in \n"
+                   "OpenGL programming guide, 3rd ed.");
+         if (NI_IS_STR_ATTR_EQUAL(texnel,"read_status","fail")) {
+            /* can't be read */
+            SUMA_RETURNe;
+         }
+
+         if (!NI_IS_STR_ATTR_EQUAL(texnel,"read_status","read")) { /* read it */
+            if (!SUMA_LoadImageNIDOnel(texnel)) {
+               SUMA_RETURNe;
+            }
+            /* has the box size been determined (only 2 dimensions needed)?*/
+            NI_GET_INTv(texnel,"box_size", sz, 2, LocalHead);
+            if (!NI_GOT) {
+               NI_GET_INT(texnel,"width", sz[0]);
+               NI_GET_INT(texnel,"height", sz[1]);
+               NI_SET_INTv(texnel,"box_size", sz, 2);
+            }
+
+         } 
+
+         NI_GET_INTv(texnel,"box_size", sz, 2, LocalHead);
+
+         /* For cool textures, see 
+            http://www.filterforge.com/filters/category42-page1.html */
+         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+         NI_GET_INT(texnel,"texName",texName);
+         if (!NI_GOT) {
+            /* Need to generate texture */
+            glGenTextures(1, &texName);
+            /* Now store it */
+            NI_SET_INT(texnel,"texName",texName);
+         }
+         glBindTexture(GL_TEXTURE_2D, texName);
+         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S, GL_REPEAT); 
+                  /* GL_REPEAT, GL_CLAMP */
+         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T, GL_REPEAT); 
+         glTexParameteri(  GL_TEXTURE_2D,
+                           GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+         glTexParameteri(  GL_TEXTURE_2D,
+                           GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            /* cotnrols interpolation of zoomed in/out texture,
+            GL_LINEAR, GL_NEAREST, ... */
+         glTexImage2D(  GL_TEXTURE_2D, 0, GL_RGBA, 
+                        sz[0], sz[1], 0, GL_RGBA, 
+                        GL_UNSIGNED_BYTE, texnel->vec[0]);
+         glTexEnvf(  GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, 
+                     SUMA_NIDO_TexEnvMode(texnel, GL_MODULATE));
+
+         /* texture goes on surface which will be drawn later, 
+            Set automatic texture coordinate generation */
+         glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, 
+                     SUMA_NIDO_TexCoordGen(texnel)); 
+               /* GL_SPHERE_MAP, GL_EYE_LINEAR, GL_OBJECT_LINEAR */
+         glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, 
+                     SUMA_NIDO_TexCoordGen(texnel));
+         glEnable(GL_TEXTURE_GEN_S);
+         glEnable(GL_TEXTURE_GEN_T);
+         glEnable(GL_TEXTURE_2D);
+                        #if 0
+                        SUMA_S_Note("I do not need all this");
+                        glEnable(GL_CULL_FACE);
+                        glEnable(GL_LIGHTING);
+                        glEnable(GL_LIGHT0);
+                        glEnable(GL_AUTO_NORMAL);
+                        glEnable(GL_NORMALIZE);
+                        glMaterialf(Face, GL_SHININESS, 64.0); 
+                        #endif     
+      }
+
+      SUMA_LH("Draw Method");
+      ND = SurfObj->NodeDim;
+      NP = SurfObj->FaceSetDim;
+      if (NP == 4) {
+         SUMA_S_Warn("Quads have not been tested here");
+      }
+
+
+      switch (DRAW_METHOD) { 
+         case STRAIGHT:
+            switch (RENDER_METHOD) {
+               case TRIANGLES:
+                  if (NP == 4) glBegin (GL_QUADS);
+                  else if (NP == 3) glBegin (GL_TRIANGLES);
+                  else { SUMA_S_Err("Badness"); SUMA_RETURNe;}
+                  break;
+               case POINTS:
+                  glPointSize(4.0); /* keep outside of glBegin */
+                  glBegin (GL_POINTS);
+                  break;
+            } /* switch RENDER_METHOD */
+            glColor4f(NODE_COLOR_R, NODE_COLOR_G, NODE_COLOR_B, SUMA_NODE_ALPHA);
+            for (i=0; i < ptch->N_FaceSet; i++)
+            {   
+               ip = NP * i;
+               id = ND * glar_FaceSetList[ip];
+               glNormal3fv(&SurfObj->NodeNormList[id]);
+               glVertex3fv(&SurfObj->NodeList[id]);
+
+               id = ND * glar_FaceSetList[ip+1];
+               glNormal3fv(&SurfObj->NodeNormList[id]);
+               glVertex3fv(&SurfObj->NodeList[id]);
+
+               id = ND * glar_FaceSetList[ip+2];
+               glNormal3fv(&SurfObj->NodeNormList[id]);
+               glVertex3fv(&SurfObj->NodeList[id]);
+
+               if (NP==4) {
+                  id = ND * glar_FaceSetList[ip+3];
+                  glNormal3fv(&SurfObj->NodeNormList[id]);
+                  glVertex3fv(&SurfObj->NodeList[id]);
+               }
+            }
+            glEnd();
+            break;
+
+         case ARRAY:
+            /* This allows each node to follow the color 
+               specified when it was drawn */ 
+            glColorMaterial(Face, GL_AMBIENT_AND_DIFFUSE); 
+            glEnable(GL_COLOR_MATERIAL);
+
+            /*Now setup various pointers*/
+            glEnableClientState (GL_COLOR_ARRAY);
+            glEnableClientState (GL_VERTEX_ARRAY);
+            glEnableClientState (GL_NORMAL_ARRAY);
+            colp = SUMA_GetColorList (sv, SurfObj->idcode_str);
+            if (!colp) { /* no color list, try  PermCol */
+               if (SurfObj->PermCol) {
+                  glColorPointer (4, GL_FLOAT, 0, SurfObj->PermCol);
+               } else {
+                  SUMA_SL_Err("Null Color Pointer.");
+               }
+            } else { 
+               glColorPointer (4, GL_FLOAT, 0, colp); 
+
+            }
+            glVertexPointer (3, GL_FLOAT, 0, SurfObj->glar_NodeList);
+            glNormalPointer (GL_FLOAT, 0, SurfObj->glar_NodeNormList);
+            if (LocalHead) 
+               fprintf(stdout, "Ready to draw Elements %d\n", ptch->N_FaceSet); 
+            switch (RENDER_METHOD) {
+               case TRIANGLES:
+                  if (NP==3) {
+                     glDrawElements (  GL_TRIANGLES, (GLsizei)ptch->N_FaceSet*3, 
+                                       GL_UNSIGNED_INT, glar_FaceSetList);
+                  } else if (NP==4) {
+                     glDrawElements (  GL_QUADS, (GLsizei)ptch->N_FaceSet*4, 
+                                       GL_UNSIGNED_INT, glar_FaceSetList);
+                  } else {
+                     SUMA_S_Err("Oh no you don't"); SUMA_RETURNe;
+                  }
+                  break;
+               case POINTS:
+                  glPointSize(4.0); /* keep outside of glBegin */
+                  /* it is inefficient to draw points using the 
+                     glar_FaceSetList because nodes are listed more 
+                     than once. You are better off creating an index 
+                     vector into glar_NodeList to place all the points, 
+                     just once*/ 
+                  if (NP == 3) {
+                     glDrawElements (  GL_POINTS, (GLsizei)ptch->N_FaceSet*3, 
+                                       GL_UNSIGNED_INT, glar_FaceSetList);
+                  } else if (NP == 4) {
+                     glDrawElements (  GL_POINTS, (GLsizei)ptch->N_FaceSet*4, 
+                                       GL_UNSIGNED_INT, glar_FaceSetList);
+                  }
+                  break;
+            } /* switch RENDER_METHOD */
+
+
+            if (texnel) {
+               /* kill baby kill */
+               texnel = NULL; /* don't leave this function 
+                                          with pointer copy */
+               glDisable(GL_TEXTURE_2D);
+               glDisable(GL_TEXTURE_GEN_T);
+               glDisable(GL_TEXTURE_GEN_S);
+            }
+
+            /*fprintf(stdout, "Disabling clients\n");*/
+            glDisableClientState (GL_COLOR_ARRAY);   
+            glDisableClientState (GL_VERTEX_ARRAY);
+            glDisableClientState (GL_NORMAL_ARRAY);   
+            /*fprintf(stdout, "Out SUMA_DrawMesh, ARRAY mode\n");*/
+
+            glDisable(GL_COLOR_MATERIAL);
+
+            if (el != dlist_tail(SurfObj->DW->DrwPtchs)) {
+               SUMA_LH("Skipping until last patch");
+               break;
+            }
+            /* draw dset contours (only label dset for now) */
+            SUMA_LH("Dset contours ");
+            if (!SUMA_Draw_SO_Dset_Contours (SurfObj,  sv)) {
+               fprintf (SUMA_STDERR, 
+                        "Error %s: Failed in drawing Dset Contour objects.\n", 
+                        FuncName);
+            }
+            /* draw surface ROIs */
+            SUMA_LH("ROIs");
+            if (!SUMA_Draw_SO_ROI (SurfObj, SUMAg_DOv, SUMAg_N_DOv, sv)) {
+               fprintf (SUMA_STDERR, 
+                        "Error %s: Failed in drawing ROI objects.\n", FuncName);
+            }
+            /* Draw Axis */
+            SUMA_LH("Axis");
+            if (SurfObj->MeshAxis && SurfObj->ShowMeshAxis)   {
+               if (!SUMA_DrawAxis (SurfObj->MeshAxis, sv)) {
+                  fprintf( stderr,
+                           "Error SUMA_DrawAxis: Unrecognized Stipple option\n");
+               }
+            }
+            /* Draw node-based vectors */
+            SUMA_LH("NBV");
+            if (!SUMA_Draw_SO_NBV (SurfObj, SUMAg_DOv, SUMAg_N_DOv, sv)) {
+               fprintf (SUMA_STDERR, 
+                        "Error %s: Failed in drawing NBV objects.\n", FuncName);
+            }
+
+            /* Draw node-based spheres */
+            SUMA_LH("NBSP");
+            if (!SUMA_Draw_SO_NBSP (SurfObj, SUMAg_DOv, SUMAg_N_DOv, sv)) {
+               fprintf (SUMA_STDERR, 
+                        "Error %s: Failed in drawing NBSP objects.\n", FuncName);
+            }
+
+            /* Draw node-based NIDOs */
+            SUMA_LH("NIDO");
+            if (!SUMA_Draw_SO_NIDO (SurfObj, SUMAg_DOv, SUMAg_N_DOv, sv)) {
+               fprintf (SUMA_STDERR, 
+                        "Error %s: Failed in drawing NIDO objects.\n", FuncName);
+            }
+
+            /* Draw Selected Node Highlight */
+            SUMA_LH("Highlight");
+            if (SUMA_SV_GetShowSelectedDatum(sv) && SurfObj->SelectedNode >= 0) {
+               if (LocalHead) fprintf(SUMA_STDOUT,"Drawing Node Selection \n");
+               id = ND * SurfObj->SelectedNode;
+               glMaterialfv(Face, GL_EMISSION, SurfObj->NodeMarker->sphcol); 
+                     /*turn on emissidity for sphere */
+               glMaterialfv(Face, GL_AMBIENT_AND_DIFFUSE, NoColor);
+               glTranslatef ( SurfObj->NodeList[id], 
+                              SurfObj->NodeList[id+1],SurfObj->NodeList[id+2]);
+               if (SurfObj->EL && SurfObj->EL->AvgLe > 0) {
+                  gluSphere(  SurfObj->NodeMarker->sphobj,
+                              SurfObj->EL->AvgLe/15,
+                              SurfObj->NodeMarker->slices, 
+                              SurfObj->NodeMarker->stacks);
+               } else {
+                  gluSphere(  SurfObj->NodeMarker->sphobj,
+                              SurfObj->NodeMarker->sphrad *          
+                                 (SUMA_sv_auto_fov(sv)/FOV_INITIAL) *  
+                                 SUMA_MAX_PAIR(sv->ZoomCompensate, 0.06),
+                              SurfObj->NodeMarker->slices, 
+                              SurfObj->NodeMarker->stacks);
+               }
+               glTranslatef ( -SurfObj->NodeList[id], 
+                              -SurfObj->NodeList[id+1],
+                              -SurfObj->NodeList[id+2]);
+               glMaterialfv(Face, GL_EMISSION, NoColor); 
+                        /*turn off emissidity for axis*/
+            }
+
+            /* Draw Selected FaceSet Highlight */
+            if (SUMA_SV_GetShowSelectedFaceSet(sv) 
+                                       && SurfObj->SelectedFaceSet >= 0) {
+               SUMA_LH("Drawing FaceSet Selection");            
+               if (!SUMA_DrawFaceSetMarker (SurfObj->FaceSetMarker, sv)) {
+                  fprintf(SUMA_STDERR,
+                     "Error SUMA_DrawMesh: Failed in SUMA_DrawFaceSetMarker\b");
+               }
+            }
+
+            /* Draw node based markers */
+            if (SurfObj->NodeObjects && 
+                SurfObj->NodeObjects->ObjectType == NIDO_type) {
+               if (!SUMA_ApplyDataToNodeObjects(SurfObj, sv)) {
+                  SUMA_S_Err("Failed to apply data to node objects");
+               }
+               if (!(SUMA_DrawNIDO ((SUMA_NIDO*)SurfObj->NodeObjects->OP, sv))) {
+                  SUMA_S_Err("Failed to draw NodeObjects");
+               }
+               SUMA_LH("Drew Node objects");
+            } else {
+               SUMA_LH("No Node objects");
+            }
+
+            /* Draw node based markers2 */
+            if (SurfObj->NodeNIDOObjects) {
+               if (!SUMA_ApplyDataToNodeNIDOObjects(SurfObj, sv)) {
+                  SUMA_S_Err("Failed to apply data to node objects2");
+               }
+               for (i=0; i<SurfObj->N_Node; ++i) {
+                  if (SurfObj->NodeNIDOObjects[i] &&
+                      !(SUMA_DrawNIDO (SurfObj->NodeNIDOObjects[i], sv) ) ) {
+                     SUMA_S_Err("Failed to draw NodeObjects");
+                  }
+               }
+               SUMA_LH("Drew NodeNIDOObjects");
+            } else {
+               SUMA_LH("No NodeNIDOObjects");
+            }
+            break;
+
+      } /* switch DRAW_METHOD */
+
+      SUMA_LH("Undoing state changes");
+      SUMA_GLStateTrack("r", &st, FuncName, NULL, NULL); 
+      
+      if (ptch->PolyMode != sv->PolyMode) 
+               SUMA_SET_GL_RENDER_MODE(sv->PolyMode);
+   } while (el != dlist_tail(SurfObj->DW->DrwPtchs));
+   
+   SUMA_LH("Bring the coords back where they ought to be");
+   SUMA_VisX_Pointers4Display(SurfObj, 0);
+
+   
+   
+   SUMA_LH("Done");
+   SUMA_RETURNe;
+} /* SUMA_DrawMesh_mask */
+
+
 /*! Create a tesselated mesh */
 void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
 {  
    static char FuncName[]={"SUMA_DrawMesh"};
    static GLfloat NoColor[] = {0.0, 0.0, 0.0, 0.0};
    GLfloat *colp = NULL;
-   int i, ii, ND, id, ip, NP, PolyMode, sz[2]={0, 0};
+   int i, ii, ND, id, ip, NP, PolyMode, sz[2]={0, 0}, N_glar_FaceSet=0;
    SUMA_DRAWN_ROI *DrawnROI = NULL;
    static GLuint texName; 
    GLfloat rotationMatrix[4][4];
@@ -16955,6 +18066,9 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
    if (NP == 4) {
       SUMA_S_Warn("Quads have not been tested here");
    }
+   
+   N_glar_FaceSet = SurfObj->N_FaceSet;
+   
    switch (DRAW_METHOD) { 
       case STRAIGHT:
          switch (RENDER_METHOD) {
@@ -16969,23 +18083,23 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
                break;
          } /* switch RENDER_METHOD */
          glColor4f(NODE_COLOR_R, NODE_COLOR_G, NODE_COLOR_B, SUMA_NODE_ALPHA);
-         for (i=0; i < SurfObj->N_FaceSet; i++)
+         for (i=0; i < N_glar_FaceSet; i++)
          {   
             ip = NP * i;
-            id = ND * SurfObj->FaceSetList[ip];
+            id = ND * SurfObj->glar_FaceSetList[ip];
             glNormal3fv(&SurfObj->NodeNormList[id]);
             glVertex3fv(&SurfObj->NodeList[id]);
 
-            id = ND * SurfObj->FaceSetList[ip+1];
+            id = ND * SurfObj->glar_FaceSetList[ip+1];
             glNormal3fv(&SurfObj->NodeNormList[id]);
             glVertex3fv(&SurfObj->NodeList[id]);
 
-            id = ND * SurfObj->FaceSetList[ip+2];
+            id = ND * SurfObj->glar_FaceSetList[ip+2];
             glNormal3fv(&SurfObj->NodeNormList[id]);
             glVertex3fv(&SurfObj->NodeList[id]);
             
             if (NP==4) {
-               id = ND * SurfObj->FaceSetList[ip+3];
+               id = ND * SurfObj->glar_FaceSetList[ip+3];
                glNormal3fv(&SurfObj->NodeNormList[id]);
                glVertex3fv(&SurfObj->NodeList[id]);
             }
@@ -17008,7 +18122,9 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
             if (SurfObj->PermCol) {
                glColorPointer (4, GL_FLOAT, 0, SurfObj->PermCol);
             } else {
-               SUMA_SL_Err("Null Color Pointer.");
+               SUMA_SL_Err("Null Color Pointer, going pink");
+	       glDisableClientState (GL_COLOR_ARRAY);
+	       glColor4f(1.0, 0.0, 1.0, 1.0);
             }
          } else { 
             glColorPointer (4, GL_FLOAT, 0, colp); 
@@ -17017,14 +18133,16 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
          glVertexPointer (3, GL_FLOAT, 0, SurfObj->glar_NodeList);
          glNormalPointer (GL_FLOAT, 0, SurfObj->glar_NodeNormList);
          if (LocalHead) 
-            fprintf(stdout, "Ready to draw Elements %d\n", SurfObj->N_FaceSet); 
+            fprintf(stdout, "Ready to draw Elements %d from %s\n", 
+	             N_glar_FaceSet, SurfObj->Label); 
          switch (RENDER_METHOD) {
             case TRIANGLES:
-               if (NP==3) {
-                  glDrawElements (  GL_TRIANGLES, (GLsizei)SurfObj->N_FaceSet*3, 
+               SUMA_LH("Tri %d %p",NP, SurfObj->glar_FaceSetList);
+	       if (NP==3) {
+                  glDrawElements (  GL_TRIANGLES, (GLsizei)N_glar_FaceSet*3, 
                                     GL_UNSIGNED_INT, SurfObj->glar_FaceSetList);
                } else if (NP==4) {
-                  glDrawElements (  GL_QUADS, (GLsizei)SurfObj->N_FaceSet*4, 
+                  glDrawElements (  GL_QUADS, (GLsizei)N_glar_FaceSet*4, 
                                     GL_UNSIGNED_INT, SurfObj->glar_FaceSetList);
                } else {
                   SUMA_S_Err("Oh no you don't"); SUMA_RETURNe;
@@ -17037,10 +18155,10 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
                   than once. You are better off creating an index 
                   vector into glar_NodeList to place all the points, just once*/ 
                if (NP == 3) {
-                  glDrawElements (  GL_POINTS, (GLsizei)SurfObj->N_FaceSet*3, 
+                  glDrawElements (  GL_POINTS, (GLsizei)N_glar_FaceSet*3, 
                                     GL_UNSIGNED_INT, SurfObj->glar_FaceSetList);
                } else if (NP == 4) {
-                  glDrawElements (  GL_POINTS, (GLsizei)SurfObj->N_FaceSet*4, 
+                  glDrawElements (  GL_POINTS, (GLsizei)N_glar_FaceSet*4, 
                                     GL_UNSIGNED_INT, SurfObj->glar_FaceSetList);
                }
                break;
@@ -17056,7 +18174,7 @@ void SUMA_DrawMesh(SUMA_SurfaceObject *SurfObj, SUMA_SurfaceViewer *sv)
             glDisable(GL_TEXTURE_GEN_S);
          }
          
-         /*fprintf(stdout, "Disabling clients\n");*/
+         SUMA_LH("Disabling clients\n");
          glDisableClientState (GL_COLOR_ARRAY);   
          glDisableClientState (GL_VERTEX_ARRAY);
          glDisableClientState (GL_NORMAL_ARRAY);   
@@ -18408,6 +19526,55 @@ int SUMA_ComputeVisX(SUMA_SurfaceObject *SO1, SUMA_SurfaceObject *SO2,
    SUMA_RETURN(1);
 }
 
+SUMA_Boolean SUMA_EmptyDrawMasks(SUMA_DRAW_MASKS * DW) 
+{
+   static char FuncName[]={"SUMA_EmptyDrawMasks"};
+   SUMA_ENTRY;
+   
+   if (!DW) {
+      SUMA_S_Err("NULL input");
+      SUMA_RETURN(NOPE);
+   }
+   
+   if (DW->nodemask) SUMA_free(DW->nodemask);
+   if (DW->DrwPtchs) dlist_destroy(DW->DrwPtchs);
+   
+   DW->nodemask = NULL;
+   DW->N_nz_nodemask = 0;
+   DW->DrwPtchs = NULL;
+   DW->PatchRegenID = 0;
+   DW->PatchGenID = -1;
+   SUMA_ifree(DW->user_exp);
+   SUMA_ifree(DW->cmask_exp);
+   SUMA_ifree(DW->last_cmask_exp);
+   SUMA_RETURN(YUP);
+}
+SUMA_Boolean SUMA_FreeDrawMasks(SUMA_DRAW_MASKS * DW) 
+{
+   static char FuncName[]={"SUMA_FreeDrawMasks"};
+   int kkk=0;
+   
+   SUMA_ENTRY;
+
+   if (DW == NULL) {
+      /* That's OK */
+      SUMA_RETURN (YUP);
+   }
+   /* is this pointer used by others ? */
+   if (DW->N_links) {
+      DW = (SUMA_DRAW_MASKS*)SUMA_UnlinkFromPointer((void *)DW);
+      SUMA_RETURN (YUP);
+   }
+   
+   /* No more links, go for it */
+   SUMA_EmptyDrawMasks(DW);
+
+   SUMA_free(DW); DW = NULL;
+   
+   SUMA_RETURN (YUP);
+}
+
+
 /*!**
 File : SUMA_Load_Surface_Object.c
 \author Ziad Saad
@@ -18583,6 +19750,8 @@ SUMA_Boolean SUMA_Free_Surface_Object (SUMA_SurfaceObject *SO)
    SUMA_EmptyVisXform(&(SO->VisX0));
    SUMA_EmptyVisXform(&(SO->VisX));
    
+   SUMA_FreeDrawMasks(SO->DW);
+   
    if (SO) SUMA_free(SO);
    
    if (LocalHead) fprintf (stdout, "Done\n");
@@ -18740,8 +19909,14 @@ char *SUMA_ADO_Info(SUMA_ALL_DO *ado, DList *DsetList, int detail)
    switch(ado->do_type) {
       case SO_type:
          return(SUMA_SurfaceObject_Info((SUMA_SurfaceObject *)ado, DsetList));
-      case SDSET_type:
+      case ANY_DSET_type:
+      case MD_DSET_type:
+      case GDSET_type:
          return(SUMA_DsetInfo((SUMA_DSET *)ado, detail));
+      case CDOM_type:
+         SUMA_S_Err("Have not written SUMA_CIFTI_Info yet");
+         s = SUMA_copy_string("Have not written SUMA_CIFTI_Info yet");
+         return(s);
       case TRACT_type:
          return(SUMA_TractDOInfo((SUMA_TractDO *)ado, detail));
       case VO_type:
@@ -19372,10 +20547,35 @@ char *SUMA_SurfaceObject_Info (SUMA_SurfaceObject *SO, DList *DsetList)
    }
    
    if (SO->NodeNIDOObjects) {
-      SUMA_StringAppend (SS, "NodeNIDOObjects is NOT NULL\n");
+      SS = SUMA_StringAppend (SS, "NodeNIDOObjects is NOT NULL\n");
    } else {
       SS = SUMA_StringAppend (SS, "NodeNIDOObjects is NULL\n");
    }
+   
+   if (SO->DW) {
+      if (SO->DW->DrwPtchs) {
+         SS = SUMA_StringAppend_va (SS, "Have %d draw patches\n", 
+                                    dlist_size(SO->DW->DrwPtchs));
+      } else {
+         SS = SUMA_StringAppend (SS, "NULL draw patches\n");
+      }
+      if (SO->DW->nodemask) {
+         SS = SUMA_StringAppend_va (SS, 
+                           "Have nodemask pointer %p, %d non-zero nodes\n", 
+                           SO->DW->nodemask, SO->DW->N_nz_nodemask);
+      } else {
+         SS = SUMA_StringAppend (SS, "NULL nodemask\n");
+      }
+      SS = SUMA_StringAppend_va (SS,"      user_exp: %s\n"
+                                    "     cmask_exp: %s\n"
+                                    "last_cmask_exp: %s\n",
+                           CHECK_NULL_STR(SO->DW->user_exp),
+                           CHECK_NULL_STR(SO->DW->cmask_exp),
+                           CHECK_NULL_STR(SO->DW->last_cmask_exp));
+   } else {
+      SS = SUMA_StringAppend (SS, "NULL DW\n");
+   }
+   
    /* clean SS */
    SS = SUMA_StringAppend (SS, NULL);
    /* copy s pointer and free SS */
@@ -19963,6 +21163,88 @@ SUMA_VolumeObject *SUMA_FreeVolumeObject(SUMA_VolumeObject *VO) {
 }
 
 /*!
+Create a CIFTI displayable Object data structure 
+*/
+SUMA_CIFTI_DO *SUMA_CreateCIFTIObject(char *Label)
+{
+   static char FuncName[]={"SUMA_CreateCIFTIObject"};
+   SUMA_CIFTI_DO *CO=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+
+   CO = (SUMA_CIFTI_DO *)SUMA_calloc(1,sizeof(SUMA_CIFTI_DO));
+   if (CO == NULL) {
+      SUMA_S_Crit("Failed to allocate");
+      SUMA_RETURN(NULL);
+   }
+   
+   
+   CO->do_type = CDOM_type;
+   if (Label) {
+      CO->Label = SUMA_copy_string(Label);
+   } else {
+      CO->Label = SUMA_copy_string("NoLabel");
+   }
+   CO->idcode_str = UNIQ_hashcode(CO->Label);
+   
+   CO->Saux = NULL;
+   CO->FreeSaux = NULL;
+   if (!SUMA_AddCIFTISaux(CO)) {
+      SUMA_S_Err("Failed to add CIFTI Saux");
+   }
+  
+   CO->N_subdoms = 0;
+   CO->subdoms_id = NULL;
+   
+   CO->Show = 1;
+   
+
+   CO->SelectedDatum = -1;
+   CO->SelectedSubAdo = -1;
+
+   SUMA_RETURN(CO);
+}
+
+SUMA_CIFTI_DO *SUMA_FreeCIFTIObject(SUMA_CIFTI_DO *CO) 
+{
+   static char FuncName[]={"SUMA_FreeCIFTIObject"};
+   int i;
+   SUMA_ALL_DO *asdo=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   if (!CO) SUMA_RETURN(NULL);
+   
+   
+   if (CO->Saux) {
+      if (!CO->FreeSaux) {
+         SUMA_S_Err("You're leaky, you're leaky");
+      } else CO->FreeSaux(CO->Saux);
+      CO->Saux=NULL; /* pointer freed in freeing function */
+   }
+   
+   SUMA_ifree(CO->idcode_str); 
+   SUMA_ifree(CO->Label);
+   
+   for (i=0; i<CO->N_subdoms; ++i) {
+      if (CO->subdoms_id[i]) {
+         asdo = SUMA_CIFTI_subdom_ado(CO,i);
+	 SUMA_LH("Note that subdomain %s is not being freed here. \n"
+	               "It remains in the DO list, free it from there \n"
+		       "if you must.", ADO_LABEL(asdo));
+      	 SUMA_ifree(CO->subdoms_id[i]);
+      }
+   }
+   SUMA_ifree(CO->subdoms_id);
+   
+   SUMA_free(CO);
+   
+   SUMA_RETURN(NULL);
+}
+
+/*!
 Create a Surface Object data structure 
 */
 SUMA_SurfaceObject *SUMA_Alloc_SurfObject_Struct(int N)
@@ -20104,6 +21386,8 @@ SUMA_SurfaceObject *SUMA_Alloc_SurfObject_Struct(int N)
       SO[i].PointSize = -1.0;
       SUMA_EmptyVisXform(&(SO[i].VisX0));
       SUMA_EmptyVisXform(&(SO[i].VisX));
+      
+      SO[i].DW = NULL;
      }
    SUMA_RETURN(SO);
 }/* SUMA_Alloc_SurfObject_Struct */
@@ -22249,3 +23533,4 @@ SUMA_MaskDO *SUMA_NIMDO_to_MDO(NI_group *ngr)
    
    SUMA_RETURN(mdo);
 }
+

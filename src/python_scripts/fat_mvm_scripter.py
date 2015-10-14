@@ -16,6 +16,14 @@
 ###########################################################################
 ###########################################################################
 
+# Apr,2015
+#    + minor bug fix
+# Aug,2015
+#    + add option for inputting ROIs as single col in file
+# Sep,2015
+#    + change gltCode names: '-' -> '--' and '^' -> '^^' to separate
+# Sep,2015
+#    + use subset of ROIs to make a new MVM table file, for subnet test
 
 import lib_fat_funcs as GR
 from numpy import set_printoptions
@@ -109,8 +117,8 @@ def main(argv):
        $  fat_mvm_scripter.py  --prefix=PREFIX                     \\
             --table=TABLE_FILE  --log=LOG_FILE                     \\
             { --vars='VAR1 VAR2 VAR3 ...' | --file_vars=VAR_FILE } \\
-            { --Pars='PAR1 PAR2 PAR3 ...' | --file_pars=PAR_FILE } \\
-            { --rois='ROI1 ROI2 ROI3 ...' }                        \\
+            { --Pars='PAR1 PAR2 PAR3 ...' | --File_Pars=PAR_FILE } \\
+            { --rois='ROI1 ROI2 ROI3 ...' | --file_rois=ROI_FILE } \\
             { --no_posthoc }  { --NA_warn_off }
      
       -p, --prefix=PREFIX      :output prefix for script file, which will
@@ -160,8 +168,8 @@ def main(argv):
 
       -P, --Pars='T S R ...'   :one method for supplying a list of parameters
                                 (that is, the names of matrices) to run in 
-            *or*                distinct 3dMVM models. Names must be
-                                separated with whitespace. Might be useful
+                                distinct 3dMVM models. Names must be
+            *or*                separated with whitespace. Might be useful
                                 to get a smaller jungle of output results in 
                                 cases where there are many matrices in a file,
                                 but only a few that are really cared about.
@@ -174,9 +182,23 @@ def main(argv):
                                 a subset of available network ROIs,
                                 if that's useful for some reason (NB:
                                 fat_mvm_prep.py should have already found
-                                a set of ROIs with data across all the
+            *or*                a set of ROIs with data across all the
                                 the subjects in the group, listed in the
-                                *MVMprep.log file.
+                                *MVMprep.log file; default would be using
+                                the entire list of ROIs in this log file as 
+                                the network of ROIs).
+      -R, --file_rois=ROI_FILE :the second method for supplying a (sub)list of
+                                ROIs for 3dMVM runs.  ROI_FILE is a text
+                                file with a single column of variable
+                                names (see '--rois' for the default network 
+                                selection).
+      -s, --subnet_pref=SUBPR  :if a subnetwork list of ROIs is used (see
+                                preceding two options), then one can give a 
+                                name SUBPR for the new table file that is 
+                                created. Otherwise, a default name from the
+                                required '--prefix=PREFIX' (or '-p PREFIX') 
+                                option is used:
+                                PREFIX_SUBNET_MVMtbl.txt.
 
       -n, --no_posthoc         :switch to turn off the automatic
                                 generation of per-ROI post hoc tests
@@ -236,30 +258,36 @@ def main(argv):
     file_prefix = ''
     list_model = ''
     userlist_roi = ''
+    pref_subnet = ''     # Sep,2015: make MVM table for user's ROI susbset
     list_pars = ''  
     file_listpars = ''
+    file_listrois = ''
     file_listmodel = ''
     file_table = ''
     file_log = ''
     SWITCH_posthoc = 1
     SWITCH_NAwarn = 1
-    comm_str = ''
-    CAT_PAIR_COMP = 1  # for categorical var, now do rel compar by default
+    SWITCH_subnet = 0    # Sep,2015: for subnet minitable
+    comm_str = ''        
+    CAT_PAIR_COMP = 1    # for categ var, now do rel compar by default
 
     try:
-        opts, args = getopt.getopt(argv,"hnNcv:f:p:t:l:r:F:P:",["help",
-                                                                "no_posthoc",
-                                                                "NA_warn_off",
-                                                                "cat_pair_off",
-                                                                "vars=",
-                                                                "file_vars=",
-                                                                "prefix=",
-                                                                "table=",
-                                                                "log_file=",
-                                                                "rois="
-                                                                "File_Pars="
-                                                                "Pars="
-                                                                ])
+        opts, args = getopt.getopt(argv,"hnNcv:f:p:t:l:r:R:F:P:s:",
+                                   ["help",
+                                    "no_posthoc",
+                                    "NA_warn_off",
+                                    "cat_pair_off",
+                                    "vars=",
+                                    "file_vars=",
+                                    "prefix=",
+                                    "table=",
+                                    "log_file=",
+                                    "rois=",
+                                    "file_rois=",
+                                    "File_Pars=",
+                                    "Pars=",
+                                    "subnet_pref="
+                                ])
     except getopt.GetoptError:
         print "** Error reading options. Try looking at the helpfile:"
         print "\t $  fat_mvm_scripter.py -h\n"
@@ -271,6 +299,14 @@ def main(argv):
             sys.exit()
         elif opt in ("-r", "--rois"):
             userlist_roi = arg
+            comm_str = GR.RecapAttach(comm_str, opt, arg)
+            SWITCH_subnet = 1
+        elif opt in ("-R", "--file_rois"):
+            file_listrois = arg
+            comm_str = GR.RecapAttach(comm_str, opt, arg)
+            SWITCH_subnet = 1
+        elif opt in ("-s", "--subnet_pref"):
+            pref_subnet = arg
             comm_str = GR.RecapAttach(comm_str, opt, arg)
         elif opt in ("-P", "--Pars"):
             list_pars = arg
@@ -327,10 +363,20 @@ def main(argv):
         print "*+ Warning: both a parameter list *and* a parameter file have",
         print " been input."
         print "\tThe latter will be used."
+    if not( userlist_roi == '' ) and not( file_listrois == '' ):
+        print "*+ Warning: both a ROI list *and* a ROI file have",
+        print " been input."
+        print "\tThe latter will be used."
+    if SWITCH_subnet:   # in case no prefix is given
+        if not(pref_subnet) :
+            pref_subnet = file_table.strip(GR.MVM_file_postfix)
+            pref_subnet+= '_SUBNET'+GR.MVM_file_postfix
 
-    return list_model, file_listmodel, file_prefix, file_table, \
-     file_log, userlist_roi, list_pars, file_listpars, SWITCH_posthoc, \
-     comm_str, SWITCH_NAwarn, CAT_PAIR_COMP
+            
+    return \
+    list_model, file_listmodel, file_prefix, file_table, \
+    file_log, userlist_roi, file_listrois, pref_subnet, list_pars, \
+    file_listpars, SWITCH_posthoc, comm_str, SWITCH_NAwarn, CAT_PAIR_COMP
 
 
 ########################################################################
@@ -339,9 +385,10 @@ if __name__=="__main__":
     set_printoptions(linewidth=200)
     print "\n"
 
-    list_model, file_listmodel, file_prefix, file_table, file_log, \
-     userlist_roi, list_pars, file_listpars, SWITCH_posthoc, comm_str, \
-     NA_WARN, CAT_PAIR_COMP = main(sys.argv[1:])
+    list_model, file_listmodel, file_prefix, file_table, \
+    file_log, userlist_roi, file_listrois, pref_subnet, list_pars, \
+    file_listpars, SWITCH_posthoc, comm_str, NA_WARN, CAT_PAIR_COMP \
+    = main(sys.argv[1:])
 
     if not(NA_WARN):
         print "++ Won't warn about NAs in the data."
@@ -365,7 +412,9 @@ if __name__=="__main__":
     ##### don't do this here, because of interactions! Nvar = len( var_list )
 
     ## For ROI lists
-    if userlist_roi:
+    if file_listrois:
+        roi_list = GR.ReadSection_and_Column(file_listrois, 0)
+    elif userlist_roi:
         roi_list = userlist_roi.split()
     else:
         roi_list = GR.GetFromLogFile(file_log, GR.LOG_LABEL_roilist)
@@ -395,6 +444,12 @@ if __name__=="__main__":
                 print "\t -> For now, will leave in the parameter list,",
                 print "but perhaps check spelling?"
 
+
+    # Sep,2015: allow subnetwork, by making subtable and using that
+    if pref_subnet:
+        okok = GR.MakeSubTable(file_table, pref_subnet, roi_list)
+        file_table = pref_subnet        
+                
     tab_raw, tab_colvars = GR.LoadInTable(file_table)
     tab_data, tab_coltypes = GR.ConvertCSVfromStr(tab_raw, tab_colvars, NA_WARN)
 
@@ -435,7 +490,7 @@ if __name__=="__main__":
     if Ninter :
         for i in range(len(var_isinterac)):
             if var_isinterac[i][0][0] :
-                var_list_EX = var_list[2].split('*')
+                var_list_EX = var_list[i].split('*') # Apr,2015: bug fix
                 var_iscateg_EX, var_isinterac_EX, Ninter_EX = GR.CheckFor_Cats_and_Inters( tab_data,
                                                                                            tab_colvars,
                                                                                            tab_coltypes,
@@ -467,6 +522,8 @@ if __name__=="__main__":
         print "   List of matrix parameters is:\n   \t  %s." % par_str
     print "   List of quantitative variables is:\n   \t%s." % varQ_str
     print "   List of categorical variables is:\n   \t%s." % varC_str
+    # add: Apr,2015
+    print "   List of interacting variables is:\n   \t%s." % varI_str
 
 
 
@@ -512,7 +569,7 @@ if __name__=="__main__":
                 if not(var_isinterac[j][0][0]):
                     y = var_list[j]
                     if not( var_iscateg[j] ):
-                        tc.append(' -gltLabel %d %s-%s -gltCode %d "ROI : 1*%s %s : " \\\n'\
+                        tc.append(' -gltLabel %d %s--%s -gltCode %d "ROI : 1*%s %s : " \\\n'\
                                       % (idx, x, y, idx,x,y) )
                         idx+=1
                     else:
@@ -524,12 +581,12 @@ if __name__=="__main__":
                                 for jj in range(ii+1,nc):
                                     # print "Pairwise Cat!"
                                     # -gltCode ? "ROI : 1*001_002 sex : 1*M -1*F" 
-                                    tc.append(' -gltLabel %d %s-%s\(+%s-%s\) -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s" \\\n' \
+                                    tc.append(' -gltLabel %d %s--%s\(+%s-%s\) -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s" \\\n' \
                                                   % (idx, x, y, z[ii], z[jj], idx, x, y, z[ii], z[jj]) )
                                     idx+=1
                         # else:
                         for z in var_iscateg[j]:
-                            tc.append(' -gltLabel %d %s-%s^%s -gltCode %d "ROI : 1*%s %s : 1*%s " \\\n'\
+                            tc.append(' -gltLabel %d %s--%s^^%s -gltCode %d "ROI : 1*%s %s : 1*%s " \\\n'\
                                           % (idx, x, y, z, idx, x, y, z) )
                             idx+=1
                 else:  # the interaction terms
@@ -544,16 +601,16 @@ if __name__=="__main__":
                                 for kk in range(nc2-1):
                                     for ll in range(kk+1,nc2):
                                         # for now, all pairwise combos
-                                        tc.append(' -gltLabel %d %s-%s\(+%s-%s\)%s%s\(+%s-%s\) -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s %s : 1*%s -1*%s" \\\n' \
-                                                      % (idx, x, y[0], z[0][ii], z[0][jj], '-', y[1], z[1][kk], z[1][ll],
+                                        tc.append(' -gltLabel %d %s--%s\(+%s-%s\)%s%s\(+%s-%s\) -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s %s : 1*%s -1*%s" \\\n' \
+                                                      % (idx, x, y[0], z[0][ii], z[0][jj], '--', y[1], z[1][kk], z[1][ll],
                                                          idx, x, y[0], z[0][ii], z[0][jj],      y[1], z[1][kk], z[1][ll]) )
                                         idx+=1
                     else:
                         nc1 = len(z[0][:])
                         for ii in range(nc1-1):
                             for jj in range(ii+1,nc1):
-                                tc.append(' -gltLabel %d %s-%s\(+%s-%s\)%s%s -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s %s :" \\\n' \
-                                              % (idx, x, y[0], z[0][ii], z[0][jj], '-', y[1],  
+                                tc.append(' -gltLabel %d %s--%s\(+%s-%s\)%s%s -gltCode %d "ROI : 1*%s %s : 1*%s -1*%s %s :" \\\n' \
+                                              % (idx, x, y[0], z[0][ii], z[0][jj], '--', y[1],  
                                                  idx, x, y[0], z[0][ii], z[0][jj],      y[1]) )
                                 idx+=1
 

@@ -297,11 +297,12 @@ GLubyte * SUMA_VE_to_tex3d(SUMA_VolumeElement **VE, int iVE, byte col)
       SUMA_LHv("Copying %d intensity in R, G, B, A \n", 
                SUMA_VE_Nvox(VE, iVE)*4);
    }
-   if (!SUMA_Colorize_dset(sdset, tex3ddata, col)) {
+   #if 0
+   if (!SUMA_Colorize_dset_OBSOLETE(sdset, tex3ddata, col)) {
       SUMA_S_Err("Failed to colorize VO");
       SUMA_RETURN(NULL); 
    }
-
+   #endif
    
    SUMA_RETURN(tex3ddata);
 }
@@ -311,10 +312,10 @@ GLubyte * SUMA_VE_to_tex3d(SUMA_VolumeElement **VE, int iVE, byte col)
    free SV for each colorizing operation. 
    
 */
-SUMA_Boolean SUMA_Colorize_dset(SUMA_DSET *dset, 
+SUMA_Boolean SUMA_Colorize_dset_OBSOLETE(SUMA_DSET *dset, 
                                 byte *tex3ddata, byte colopt)
 {
-   static char FuncName[]={"SUMA_Colorize_dset"};
+   static char FuncName[]={"SUMA_Colorize_dset_OBSOLETE"};
    static SUMA_SCALE_TO_MAP_OPT *Opt=NULL;  
    static SUMA_COLOR_MAP *ColMap=NULL; 
    SUMA_COLOR_SCALED_VECT * SV= NULL;
@@ -898,7 +899,8 @@ void SUMA_dset_slice_corners( int slc, float *orig, float *del,
 }
 
 SUMA_Boolean SUMA_LoadVolDO (char *fname, 
-                        SUMA_DO_CoordUnits coord_type, SUMA_VolumeObject **VOp)
+                        SUMA_DO_CoordUnits coord_type, SUMA_VolumeObject **VOp,
+			byte PutVOinList)
 {
    static char FuncName[]={"SUMA_LoadVolDO"};
    SUMA_VolumeObject *VO=NULL;
@@ -970,20 +972,37 @@ SUMA_Boolean SUMA_LoadVolDO (char *fname,
          SurfCont->Co_slc->slice_num = (int)(SUMA_VO_N_Slices(VO, "Co")/2.0); 
          
          VSaux->ShowVrSlc = 0;
+         VSaux->VrSelect = 0;
          VSaux->SlicesAtCrosshair = 0;
          /* Maybe params froms the env? */
          SUMA_Set_VO_Slice_Params(SUMA_EnvVal("SUMA_VO_InitSlices"), VO);
+         /* And for selectable VR */
+         { 
+            char *eee = getenv("SUMA_VrSelectable");
+            if (eee) {
+               if (strcmp(eee,"NO") == 0)  VSaux->VrSelect = NOPE;
+               else if (strcmp(eee,"YES") == 0) VSaux->VrSelect = YUP;
+               else {
+                  fprintf (SUMA_STDERR,   
+                           "Warning %s:\n"
+                        "Bad value for environment variable SUMA_VrSelectable\n"
+                           "Assuming default of YES", FuncName);
+                  VSaux->VrSelect = YUP;
+               }
+            } else VSaux->VrSelect = YUP;
+         } 
       } else {
          SUMA_S_Err("Failed to initialize volume display");
       }
    }
-   /* Add VO into DO list */
-   if (!SUMA_AddDO(SUMAg_DOv, &(SUMAg_N_DOv), (void *)VO,  
-                     VO_type, coord_type)) {
-      fprintf(SUMA_STDERR,"Error %s: Error Adding DO\n", FuncName);
-      SUMA_RETURN(NOPE);
+   if (PutVOinList) {
+      /* Add VO into DO list */
+      if (!SUMA_AddDO(SUMAg_DOv, &(SUMAg_N_DOv), (void *)VO,  
+                	VO_type, coord_type)) {
+	 fprintf(SUMA_STDERR,"Error %s: Error Adding DO\n", FuncName);
+	 SUMA_RETURN(NOPE);
+      }
    }
-   
    SUMA_RETURN(YUP);
 }
 
@@ -1184,7 +1203,7 @@ SUMA_Boolean SUMA_Load3DTextureNIDOnel (NI_element *nel,
       coord_type = defaultcoordtype;
    }
    
-   if (!(SUMA_LoadVolDO(fname, coord_type, &VO))) {
+   if (!(SUMA_LoadVolDO(fname, coord_type, &VO,1))) {
       SUMA_S_Err("Failed to read %s", NI_get_attribute(nel,"filename"));
       SUMA_ifree(fname);
       SUMA_RETURN(NOPE);
@@ -1203,7 +1222,7 @@ SUMA_Boolean SUMA_Load3DTextureNIDOnel (NI_element *nel,
          break;
       }
       
-      if (!(SUMA_LoadVolDO( fname, coord_type, &VO ))) {
+      if (!(SUMA_LoadVolDO( fname, coord_type, &VO,1))) {
          SUMA_S_Errv("Failed to open %s\n", fname);
          SUMA_free(fname); fname = NULL;
          break;
@@ -1679,8 +1698,13 @@ int SUMA_dset_tex_slice_corners_gui(SUMA_VolumeElement **VE, int ive,
             if (nslc >= VE[ive]->Nk) nslc = VE[ive]->Nk-1;
          } 
          break;
+      case 'V': /* Volume rendering, do not do much */
+         SUMA_S_Note("What to return here?");
+         SUMA_RETURN(0);
+         break;
       default:
-         SUMA_S_Err("What gives? Variant %s", variant);
+         SUMA_S_Err("What gives? Variant '%s'", variant);
+         SUMA_DUMP_TRACE("Bad variant trace");
          SUMA_RETURN(-1);
    }
    if (PlEq) { /* Equation of plane for slice in question */
@@ -2061,7 +2085,8 @@ int SUMA_VO_SelectedSlice(SUMA_VolumeObject *vo, char *variant, float *scorners)
             VSaux->PR->iAltSel[SUMA_VOL_J],
             VSaux->PR->iAltSel[SUMA_VOL_K],
             nslc);
-   if (nslc >= 0 && scorners) {
+   if (nslc >= 0 && scorners && 
+       VSaux->PR->iAltSel[SUMA_VOL_SLC_VARIANT] != SUMA_VR_VARIANT) {
       SUMA_dset_tex_slice_corners_gui(vo->VE, 0, variant, nslc, 
                           slc_tcorners, slc_corners, 
                           NULL, NULL, 0 );
@@ -2463,7 +2488,7 @@ SUMA_Boolean SUMA_GET_VR_Slice_Pack(SUMA_VolumeObject *VO,
    for (nn=0; nn<N_slc; ++nn) {
       rslc = (SUMA_RENDERED_SLICE *) SUMA_malloc(sizeof(SUMA_RENDERED_SLICE));
       rslc->Eq[0] = Eq[0]; rslc->Eq[1] = Eq[1]; rslc->Eq[2] = Eq[2];
-      rslc->Eq[3] = PlOff[nn] ;
+      rslc->Eq[3] = PlOff[nn] ; sprintf(rslc->variant,"Vr");
       /* stick plane in list, last one to be rendered goes to top */
       SUMA_LH("Intersecting VR plane %f %f %f %f, on vol %s\n"
               "(origin %f %f %f)",
@@ -2756,6 +2781,46 @@ SUMA_Boolean SUMA_SV_Mark_Textures_Status(SUMA_SurfaceViewer *sv, char *MarkAs,
    }
 }
 
+SUMA_Boolean SUMA_Draw_CIFTI_DO(SUMA_CIFTI_DO *CO, 
+                               SUMA_SurfaceViewer *sv)
+{
+   static char FuncName[]={"SUMA_Draw_CIFTI_DO"};
+   int i, pp=0;
+   SUMA_ALL_DO *asdo=NULL;
+   SUMA_Boolean LocalHead = NOPE;
+   
+   SUMA_ENTRY;
+   
+   SUMA_LH("We are not rendering CIFTI DOs directly anymore.\n"
+      	   "Delete once we're sure we won't go down this route.\n"
+	   "CIFTI DOs are rendered by rendering their elementary\n"
+	   "DOs. And if you do go down that route, safer to refer\n"
+	   "to DOs by their IDs");
+	          
+   SUMA_RETURN(YUP);
+   
+   for (i=0; i<CO->N_subdoms; ++i) {
+      if (CO->subdoms_id[i]) {
+      asdo = SUMA_CIFTI_subdom_ado(CO, i);
+      switch (asdo->do_type) {
+      	 case SO_type:
+	    if (!pp) SUMA_DrawMesh((SUMA_SurfaceObject *)asdo, sv);
+	    ++pp;
+	    break;
+	 case VO_type:
+	    SUMA_DrawVolumeDO((SUMA_VolumeObject*)asdo, sv);
+	    break;
+	 default:
+	    SUMA_S_Err("Not ready for subdom %d", asdo->do_type);
+	    break;      
+      }
+      }
+   }
+   
+   
+   SUMA_RETURN(YUP);
+}
+
 SUMA_Boolean SUMA_DrawVolumeDO(SUMA_VolumeObject *VO, 
                                SUMA_SurfaceViewer *sv)
 {
@@ -3036,10 +3101,10 @@ SUMA_Boolean SUMA_DrawVolumeDO_slices(SUMA_VolumeObject *VO,
    if (SUMA_SV_GetShowSelectedFaceSet(sv)) { 
       int selslice = -1;
       float nlt[12];
-      char variant[8];
+      char variant[8]={"notset"};
       GLfloat No_Color[4] = { 0.0, 0.0, 0.0, 0.0 };
       selslice = SUMA_VO_SelectedSlice(VO, variant, nlt);
-      if (selslice >= 0) {
+      if (selslice >= 0 && variant[0] != 'V') {
          SUMA_LH("Drawing %s Slice %d Selection Contour\n"
                  "%f %f %f --> %f %f %f ...\n", 
                  variant, selslice,
@@ -3058,7 +3123,8 @@ SUMA_Boolean SUMA_DrawVolumeDO_slices(SUMA_VolumeObject *VO,
                         or risk hurting functions that expect it to be off. */
          glDisable(GL_COLOR_MATERIAL);
       } else {
-         SUMA_LH("Either no selection or failed to find slice");
+         SUMA_LH("Either no selection or failed to find slice, "
+                 "or VR intersection (variant=%s)", variant);
       }
    } else {
       SUMA_LH("Do not show selected faceset");

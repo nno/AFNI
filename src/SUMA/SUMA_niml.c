@@ -9,6 +9,9 @@ extern SUMA_CommonFields *SUMAg_CF;
 extern SUMA_SurfaceViewer *SUMAg_SVv;
 extern int SUMAg_N_SVv;
 
+/*-----------------------------------------------*/
+void SUMA_freep( void *p ){ free(p) ; return ; }  /* RWC: 07 Oct 2015 */
+/*-----------------------------------------------*/
 
 /*-----------------------------------------------*/
 /*! Flag to tell if NIML things are initialized. */
@@ -2408,7 +2411,10 @@ NI_element * SUMA_makeNI_CrossHair (SUMA_SurfaceViewer *sv)
          ip = SUMA_ADO_SelectedDatum(ado, (void *)ivsel, NULL);
          NI_add_column( nel , NI_FLOAT , sv->Ch->c_noVisX );
          break;
-      case SDSET_type:
+      case GDSET_type:
+         break;
+      case CDOM_type:
+         SUMA_S_Err("Implement me");SUMA_RETURN (NULL);
          break;
       case GRAPH_LINK_type:
          if (strcmp(SUMA_ADO_variant(ado),"G3D")) break;
@@ -2553,7 +2559,10 @@ NI_group * SUMA_makeNI_InstaTract_Query (SUMA_SurfaceViewer *sv)
          break;
       case MASK_type:
          break;
-      case SDSET_type:
+      case GDSET_type:
+         break;
+      case CDOM_type:
+         SUMA_S_Err("Implement me"); SUMA_RETURN(NULL);
          break;
       case GRAPH_LINK_type:
          if (strcmp(SUMA_ADO_variant(ado),"G3D")) break;
@@ -2636,10 +2645,11 @@ SUMA_Boolean SUMA_CanTalkToAfni (SUMA_DO *dov, int N_dov)
             break;
          case VO_type:
          case MASK_type:
+         case CDOM_type:
          case TRACT_type:
             SUMA_RETURN(YUP);
             break;
-         case SDSET_type:
+         case GDSET_type:
             break;
          case GRAPH_LINK_type:
             if (iDO_is_variant(i, "G3D")) SUMA_RETURN(YUP);

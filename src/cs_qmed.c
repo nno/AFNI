@@ -121,6 +121,82 @@ float qmed_float( int n , float *ar )
    return (nodd) ? a[mid] : 0.5*(a[mid]+a[mid-1]) ;
 }
 
+/* find the modal value in a list of numbers
+   mostly useful for integers, but not limiting here.
+   doing this brute force for now */
+float qmode_float( int n , float *ar )
+{
+   register int i , j ;           /* scanning indices */
+   register float temp, mode ;
+   register float *a = ar, *b;
+   register int cnt, maxcnt ;
+
+   /* no values, get out of here */
+   if (n==0) return(0.0);
+
+
+   /* general case */
+   maxcnt = 0; mode = -9999;
+   for(i=0;i<n;i++) {
+      temp = *a++;    /* value in list */
+      if(temp==mode) continue;   /* same value as the mode already, skip to next */
+      b = a;
+      cnt = 1;   /* the value itself is the first time in the list */
+      /* count how many times that number occurs in the rest of the list */
+      for(j=i+1;j<n;j++){  /* only have to check remaining values*/
+         if(temp==*b++)
+            cnt++;
+      }
+
+      /* new mode value if value shows up more than the previous mode */
+      if(cnt>maxcnt) {
+         maxcnt = cnt;
+         mode = temp;
+      }
+   }
+
+   return(mode) ;
+}
+
+/* find the non-zero modal value in a list of numbers
+   mostly useful for integers, but not limiting here.
+   doing this brute force for now */
+float qnzmode_float( int n , float *ar )
+{
+   register int i , j ;           /* scanning indices */
+   register float temp, mode ;
+   register float *a = ar, *b;
+   register int cnt, maxcnt ;
+
+   /* no values, get out of here */
+   if (n==0) return(0.0);
+
+   /* general case */
+   maxcnt = 0; mode = -9999;
+   for(i=0;i<n;i++) {
+      temp = *a++;    /* value in list */
+      if((temp==mode)||(temp==0)) continue;   /* ignore zero or current mode value */
+      b = a;
+      cnt = 1;   /* the value itself is the first time in the list */
+      /* count how many times that number occurs in the rest of the list */
+      for(j=i+1;j<n;j++){  /* only have to check remaining values*/
+         if(temp==*b++)
+            cnt++;
+      }
+
+      /* new mode value if value shows up more than the previous mode */
+      if(cnt>maxcnt) {
+         maxcnt = cnt;
+         mode = temp;
+      }
+   }
+
+   /* if didn't find anything non-zero,return 0.0 */
+   if(maxcnt==0) return(0.0);
+   /* normal case - return mode */
+   return(mode) ;
+}
+
 /*---------------------------------------------------------------
   Return mean and sigma of a float array -- 07 Dec 2006
 -----------------------------------------------------------------*/
@@ -210,6 +286,42 @@ void qmedmadbmv_float( int n, float *ar, float *med, float *mad, float *bmv )
    }
    if( dbmv != 0.0f ) dbmv = 0.989f * sqrtf(n*nbmv) / fabsf(dbmv) ;
    *bmv = dbmv ;
+   return ;
+}
+
+/*---------------------------------------------------------------
+  Return median and MAD and mean AD -- 11 Aug 2015 - RWCox
+-----------------------------------------------------------------*/
+
+void qmedmadmeanad_float( int n, float *ar, float *med, float *mad , float *meanad )
+{
+   float me=0.0f , ma=0.0f , md=0.0f , *q ;
+   register int ii ;
+
+   if( (med == NULL && mad == NULL && meanad == NULL ) || n <= 0 || ar == NULL ) return ;
+
+#pragma omp critical (MALLOC)
+   q = (float *)malloc(sizeof(float)*n) ;  /* workspace */
+   AAmemcpy(q,ar,sizeof(float)*n) ;  /* duplicate input array */
+   me = qmed_float( n , q ) ;      /* compute median (partially sorts q) */
+
+   if( (mad != NULL || meanad != NULL) && n > 1 ){
+     for( ii=0 ; ii < n ; ii++ ){   /* subtract off median */
+       q[ii] = fabsf(q[ii]-me) ;   /* (absolute deviation) */
+       md += q[ii] ;
+     }
+     md /= n ;
+     if( mad != NULL ){
+       ma = qmed_float( n , q ) ;    /* MAD = median absolute deviation */
+     }
+   }
+
+#pragma omp critical (MALLOC)
+   free(q) ;
+
+   if( med    != NULL ) *med    = me ;
+   if( mad    != NULL ) *mad    = ma ;
+   if( meanad != NULL ) *meanad = md ;
    return ;
 }
 
@@ -418,7 +530,7 @@ int compare_string (const void *a, const void *b )
    if (!*ib) return(1);
    return (strcmp(*ia, *ib));
 }
-   
+
 int compare_double (double *a, double *b )
 {/* compare_double*/
     if (*a < *b)
