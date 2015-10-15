@@ -28,6 +28,9 @@ function test_GetWord_basics()
         end
     end
 
+    warning_state=warning();
+    warning_resetter=onCleanup(@()warning(warning_state));
+    warning('off');
 
     [err,w]=GetWord ('Hello Jim | Munch',2,'x');
     assertEqual(err,1);
