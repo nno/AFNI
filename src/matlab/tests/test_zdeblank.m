@@ -10,6 +10,7 @@ function test_zdeblank_basics()
     aeq('foo','foo');
     aeq('','');
     
+
     % get the space characters
     t=sprintf('\t');
     n=sprintf('\n');
@@ -19,6 +20,8 @@ function test_zdeblank_basics()
     s=' ';
     
     space_chars=[t n z f r s];
+    aeq('',space_chars);
+
     n_space=numel(space_chars);
     infix=['a b ' space_chars ' c d'];
     
